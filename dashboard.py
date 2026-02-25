@@ -47,11 +47,19 @@ def open_dashboard(root):
 
     # --- MAIN CONTAINER ---
     main_container = tk.Frame(dash, bg="#f4f7fe")
-    main_container.pack(fill="both", expand=True, padx=40, pady=40)
+    main_container.pack(fill="both", expand=True)
+
+    # Outer wrapper to center everything
+    center_wrapper = tk.Frame(main_container, bg="#f4f7fe")
+    center_wrapper.pack(expand=True)
 
     # --- BUTTON GRID ---
-    grid_frame = tk.Frame(main_container, bg="#f4f7fe")
+    grid_frame = tk.Frame(center_wrapper, bg="#f4f7fe")
     grid_frame.pack()
+
+    # Make columns expandable (Perfect Center)
+    for i in range(4):
+        grid_frame.grid_columnconfigure(i, weight=1)
 
     buttons = [
         ("📂 Categories", categories.open_categories_window),
@@ -87,89 +95,7 @@ def open_dashboard(root):
         if col == 4:
             col = 0
             row += 1
-
-    # ================= SUMMARY SECTION (NOW CORRECT PLACE) =================
-    summary_frame = tk.Frame(main_container, bg="#f4f7fe")
-    summary_frame.pack(pady=40)
-
-    def load_dashboard_summary():
-
-        # 🔥 Clear previous summary
-        for widget in summary_frame.winfo_children():
-            widget.destroy()
-
-        BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-        db_path = os.path.join(BASE_DIR, "product_stock_name.db")
-
-        conn = sqlite3.connect(db_path)
-        cur = conn.cursor()
-
-        cur.execute("SELECT SUM(qty_of_product * price) FROM selling_bill")
-        total_revenue = cur.fetchone()[0] or 0
-
-        cur.execute("SELECT COUNT(DISTINCT bill_no) FROM selling_bill")
-        total_bills = cur.fetchone()[0] or 0
-
-        cur.execute("SELECT SUM(qty_of_product) FROM selling_bill")
-        total_qty_sold = cur.fetchone()[0] or 0
-
-        avg_bill = total_revenue / total_bills if total_bills > 0 else 0
-
-        cur.execute("SELECT SUM(qty_of_product * price) FROM purchase_bill")
-        total_purchase = cur.fetchone()[0] or 0
-
-        conn.close()
-
-        stats = [
-            ("💰 Revenue", f"₹ {total_revenue:.2f}"),
-            ("🧾 Bills", f"{total_bills}"),
-            ("📦 Sold Qty", f"{total_qty_sold}"),
-            ("📊 Avg Bill", f"₹ {avg_bill:.2f}"),
-            ("💸 Purchase", f"₹ {total_purchase:.2f}")
-        ]
-
-        # Single Outer Frame (Table Border)
-        table_frame = tk.Frame(summary_frame,
-                            bg="white",
-                            highlightbackground="#d0d0d0",
-                            highlightthickness=1)
-
-        table_frame.pack(pady=30)
-
-        # First Row (Titles)
-        for col, (title, value) in enumerate(stats):
-
-            title_label = tk.Label(table_frame,
-                                text=title,
-                                font=("Segoe UI", 10, "bold"),
-                                bg="white",
-                                fg="#5c7cfa",
-                                padx=25, pady=10,
-                                borderwidth=1,
-                                relief="solid")
-
-            title_label.grid(row=0, column=col, sticky="nsew")
-
-        # Second Row (Values)
-        for col, (title, value) in enumerate(stats):
-
-            value_label = tk.Label(table_frame,
-                                text=value,
-                                font=("Segoe UI", 14, "bold"),
-                                bg="white",
-                                fg="black",
-                                padx=25, pady=15,
-                                borderwidth=1,
-                                relief="solid")
-
-            value_label.grid(row=1, column=col, sticky="nsew")
-
-        # Equal column width
-        for i in range(len(stats)):
-            table_frame.grid_columnconfigure(i, weight=1)
-
-    load_dashboard_summary()
-
+    
     # --- Logout ---
     def logout():
         dash.destroy()
@@ -184,20 +110,4 @@ def open_dashboard(root):
 
     btn_logout.pack(side="bottom", pady=30)
 
-    refresh_btn = tk.Button(main_container,
-                        text="🔄 Refresh",
-                        command=load_dashboard_summary,
-                        bg="white",                 # ✅ White background
-                        fg="#5c7cfa",               # ✅ Blue text
-                        font=("Segoe UI", 10, "bold"),
-                        relief="flat",              # ✅ Remove 3D look
-                        highlightbackground="#e0e0e0",
-                        highlightthickness=1,      # ✅ Light border
-                        bd=0,
-                        padx=25,
-                        pady=5,
-                        cursor="hand2")
-
-    refresh_btn.pack(pady=5)
-
-    dash.protocol("WM_DELETE_WINDOW", root.destroy)
+   
