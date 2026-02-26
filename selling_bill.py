@@ -37,6 +37,22 @@ def open_selling_bill_window():
     form_frame = tk.Frame(main_frame, bg="white")
     form_frame.pack(side="left", fill="y", padx=20)
 
+    def load_customer_names():
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+        cur.execute("SELECT customer_name FROM customer")
+        customers = [row[0] for row in cur.fetchall()]
+        conn.close()
+        
+        customers_name = {customer: customer for customer in customers}
+        customers_names = list(customers_name.keys())
+
+        names = ttk.Combobox(form_frame, values=customers_names,
+                             font=("Segoe UI", 10),
+                             state="readonly")
+        names.pack(fill="x", ipady=6, pady=(0, 10))
+    
+
     def create_input(parent, label):
         tk.Label(parent, text=label,
                  font=("Segoe UI", 10, "bold"),
@@ -52,7 +68,22 @@ def open_selling_bill_window():
     entry_bill_no = create_input(form_frame, "Bill No")
     entry_product_id = create_input(form_frame, "Product ID")
     entry_product_name = create_input(form_frame, "Product Name")
-    entry_customer_name = create_input(form_frame, "Customer Name")
+    # -------- Customer Name Combobox --------
+    tk.Label(form_frame, text="Customer Name",
+            font=("Segoe UI", 10, "bold"),
+            bg="white", fg="#5c7cfa").pack(anchor="w", pady=(5, 5))
+
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+    cur.execute("SELECT customer_name FROM customers")
+    customers = [row[0] for row in cur.fetchall()]
+    conn.close()
+
+    entry_customer_name = ttk.Combobox(form_frame,
+                                    values=customers,
+                                    font=("Segoe UI", 10),
+                                    state="readonly")
+    entry_customer_name.pack(fill="x", ipady=6, pady=(0, 10))
     entry_date = create_input(form_frame, "Date")
     entry_payment = create_input(form_frame, "Payment Method")
     entry_qty = create_input(form_frame, "Quantity")
@@ -237,7 +268,18 @@ def open_selling_bill_window():
 
         conn = sqlite3.connect(db_path)
         cur = conn.cursor()
-        cur.execute("SELECT * FROM selling_bill WHERE bill_id=?", (selected_rowid,))
+        cur.execute("""
+    SELECT bill_no,
+           product_id,
+           product_name,
+           customer_name,
+           date,
+           payment_method,
+           qty_of_product,
+           price
+    FROM selling_bill
+    WHERE bill_id=?
+""", (selected_rowid,))
         bill = cur.fetchone()
         conn.close()
 
@@ -245,14 +287,14 @@ def open_selling_bill_window():
             messagebox.showerror("Error", "Bill not found")
             return
 
-        bill_no = bill[1]
-        product_id = bill[2]
-        product_name = bill[3]
-        customer_name = bill[4]
-        date = bill[5]
-        payment = bill[6]
-        qty = float(bill[7])
-        price = float(bill[8])
+        bill_no = bill[0]
+        product_id = bill[1]
+        product_name = bill[2]
+        customer_name = bill[3]
+        date = bill[4]
+        payment = bill[5]
+        qty = float(bill[6])
+        price = float(bill[7])
 
         total = qty * price
 
