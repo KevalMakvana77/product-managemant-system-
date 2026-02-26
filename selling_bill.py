@@ -52,6 +52,7 @@ def open_selling_bill_window():
     entry_bill_no = create_input(form_frame, "Bill No")
     entry_product_id = create_input(form_frame, "Product ID")
     entry_product_name = create_input(form_frame, "Product Name")
+    entry_customer_name = create_input(form_frame, "Customer Name")
     entry_date = create_input(form_frame, "Date")
     entry_payment = create_input(form_frame, "Payment Method")
     entry_qty = create_input(form_frame, "Quantity")
@@ -81,8 +82,8 @@ def open_selling_bill_window():
 
     # ================= TABLE =================
     columns = ("RowID", "Bill No", "Product ID", "Product Name",
-               "Date", "Payment", "Qty", "Price")
-
+           "Customer Name", "Date", "Payment", "Qty", "Price")
+    
     tree = ttk.Treeview(right_frame, columns=columns,
                         show="headings", height=15)
 
@@ -106,6 +107,7 @@ def open_selling_bill_window():
            bill_no,
            product_id,
            product_name,
+           customer_name,
            date,
            payment_method,
            qty_of_product,
@@ -130,8 +132,9 @@ def open_selling_bill_window():
         selected_rowid = row[0]
 
         fields = [entry_bill_no, entry_product_id,
-                  entry_product_name, entry_date,
-                  entry_payment, entry_qty, entry_price]
+          entry_product_name, entry_customer_name,
+          entry_date, entry_payment,
+          entry_qty, entry_price]
 
         for i, field in enumerate(fields):
             field.delete(0, tk.END)
@@ -139,7 +142,7 @@ def open_selling_bill_window():
 
     def save_bill():
         data = (entry_bill_no.get(), entry_product_id.get(),
-                entry_product_name.get(), entry_date.get(),
+                entry_product_name.get(), entry_customer_name.get(), entry_date.get(),
                 entry_payment.get(), entry_qty.get(),
                 entry_price.get())
 
@@ -151,9 +154,9 @@ def open_selling_bill_window():
         cur = conn.cursor()
         cur.execute("""
             INSERT INTO selling_bill
-            (bill_no, product_id, product_name, date,
+            (bill_no, product_id, product_name, customer_name, date,
              payment_method, qty_of_product, price)
-            VALUES (?,?,?,?,?,?,?)
+            VALUES (?,?,?,?,?,?,?,?)
         """, data)
         conn.commit()
         conn.close()
@@ -173,13 +176,14 @@ def open_selling_bill_window():
         cur = conn.cursor()
         cur.execute("""
     UPDATE selling_bill
-    SET bill_no=?, product_id=?, product_name=?, date=?,
+    SET bill_no=?, product_id=?, product_name=?, customer_name=?, date=?,
         payment_method=?, qty_of_product=?, price=?
     WHERE bill_id=?
 """, (
     entry_bill_no.get(),
     entry_product_id.get(),
     entry_product_name.get(),
+    entry_customer_name.get(),
     entry_date.get(),
     entry_payment.get(),
     entry_qty.get(),
@@ -218,7 +222,7 @@ def open_selling_bill_window():
         nonlocal selected_rowid
         selected_rowid = 0
         for field in [entry_bill_no, entry_product_id,
-                      entry_product_name, entry_date,
+                      entry_product_name, entry_customer_name, entry_date,
                       entry_payment, entry_qty, entry_price]:
             field.delete(0, tk.END)
         entry_date.insert(0, datetime.now().strftime("%Y-%m-%d"))
@@ -244,10 +248,11 @@ def open_selling_bill_window():
         bill_no = bill[1]
         product_id = bill[2]
         product_name = bill[3]
-        date = bill[4]
-        payment = bill[5]
-        qty = float(bill[6])
-        price = float(bill[7])
+        customer_name = bill[4]
+        date = bill[5]
+        payment = bill[6]
+        qty = float(bill[7])
+        price = float(bill[8])
 
         total = qty * price
 
@@ -264,6 +269,7 @@ def open_selling_bill_window():
         ----------------------------------------------
 
         Bill No        : {bill_no}
+        Customer Name  : {customer_name}
         Date           : {date}
         Payment Method : {payment}
 
