@@ -47,7 +47,22 @@ def open_Stock_in_window():
         return e
 
     entry_product_id = create_input(form_frame, "Product ID")
-    entry_supplier_id = create_input(form_frame, "Supplier ID")
+    # -------- Supplier Name Combobox --------
+    tk.Label(form_frame, text="Supplier Name",
+            font=("Segoe UI", 10, "bold"),
+            bg="white", fg="#5c7cfa").pack(anchor="w", pady=(5, 5))
+
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+    cur.execute("SELECT supplier_name FROM suppliers")
+    suppliers = [row[0] for row in cur.fetchall()]
+    conn.close()
+
+    entry_supplier_name = ttk.Combobox(form_frame,
+                                    values=suppliers,
+                                    font=("Segoe UI", 10),
+                                    state="readonly")
+    entry_supplier_name.pack(fill="x", ipady=6, pady=(0, 10))
     entry_qty = create_input(form_frame, "Quantity")
     entry_date = create_input(form_frame, "Date (YYYY-MM-DD)")
     entry_date.insert(0, datetime.now().strftime("%Y-%m-%d"))
@@ -72,7 +87,7 @@ def open_Stock_in_window():
     btn_style(btn_frame, "ANALYSIS", "#fa5252", lambda: show_stock_report()).pack(side="left", padx=5)
 
     # Treeview
-    columns = ("ID", "Product ID", "Supplier ID", "Quantity", "Date")
+    columns = ("ID", "Product ID", "Supplier Name", "Quantity", "Date")
     tree = ttk.Treeview(right_frame, columns=columns, show="headings", height=15)
 
     for col in columns:
@@ -106,22 +121,22 @@ def open_Stock_in_window():
         selected_stock_id = values[0]
 
         entry_product_id.delete(0, tk.END)
-        entry_supplier_id.delete(0, tk.END)
+        entry_supplier_name.delete(0, tk.END)
         entry_qty.delete(0, tk.END)
         entry_date.delete(0, tk.END)
 
         entry_product_id.insert(0, values[1])
-        entry_supplier_id.insert(0, values[2])
+        entry_supplier_name.insert(0, values[2])
         entry_qty.insert(0, values[3])
         entry_date.insert(0, values[4])
 
     def add_stock():
         conn = sqlite3.connect(db_path)
         cur = conn.cursor()
-        cur.execute("""INSERT INTO stock_in (product_id, supplier_id, quantity, date)
-                       VALUES (?,?,?,?)""",
-                    (entry_product_id.get(), entry_supplier_id.get(),
-                     entry_qty.get(), entry_date.get()))
+        cur.execute("""INSERT INTO stock_in (product_id, supplier_name, quantity, date)
+               VALUES (?,?,?,?)""",
+            (entry_product_id.get(), entry_supplier_name.get(),
+             entry_qty.get(), entry_date.get()))
         conn.commit()
         conn.close()
 
@@ -136,10 +151,10 @@ def open_Stock_in_window():
 
         conn = sqlite3.connect(db_path)
         cur = conn.cursor()
-        cur.execute("""UPDATE stock_in SET product_id=?, supplier_id=?, quantity=?, date=?
-                       WHERE stock_in_id=?""",
-                    (entry_product_id.get(), entry_supplier_id.get(),
-                     entry_qty.get(), entry_date.get(), selected_stock_id))
+        cur.execute("""UPDATE stock_in SET product_id=?, supplier_name=?, quantity=?, date=?
+               WHERE stock_in_id=?""",
+            (entry_product_id.get(), entry_supplier_name.get(),
+             entry_qty.get(), entry_date.get(), selected_stock_id))
         conn.commit()
         conn.close()
 
@@ -167,7 +182,7 @@ def open_Stock_in_window():
         nonlocal selected_stock_id
         selected_stock_id = None
         entry_product_id.delete(0, tk.END)
-        entry_supplier_id.delete(0, tk.END)
+        entry_supplier_name.delete(0, tk.END)
         entry_qty.delete(0, tk.END)
         entry_date.delete(0, tk.END)
         entry_date.insert(0, datetime.now().strftime("%Y-%m-%d"))
@@ -178,6 +193,7 @@ def open_Stock_in_window():
 
         # Database mathi stock_in data lao
         df = pd.read_sql_query("SELECT * FROM stock_in", conn)
+        conn.close()
 
         if df.empty:
             messagebox.showinfo("Stock Report", "No stock data found!")
@@ -189,6 +205,9 @@ def open_Stock_in_window():
         # 🔹 Product ID wise total stock
         product_summary = df.groupby("product_id")["quantity"].sum()
 
+        # 🔹 Supplier wise total stock  ✅ NEW
+        supplier_summary = df.groupby("supplier_name")["quantity"].sum()
+
         # 🔹 Date wise total stock
         date_summary = df.groupby("date")["quantity"].sum()
 
@@ -196,17 +215,26 @@ def open_Stock_in_window():
         highest_product = product_summary.idxmax()
         highest_quantity = product_summary.max()
 
-       # Product summary ne proper format ma convert karo
+        # 🔹 Top Supplier  ✅ NEW
+        top_supplier = supplier_summary.idxmax()
+        top_supplier_qty = supplier_summary.max()
+
+        # ---------------- Product Summary Text ----------------
         product_text = ""
         for pid, qty in product_summary.items():
             product_text += f"Product ID {pid}  →  {qty}\n"
 
-        # Date summary ne proper format ma convert karo
+        # ---------------- Supplier Summary Text ----------------
+        supplier_text = ""
+        for name, qty in supplier_summary.items():
+            supplier_text += f"{name}  →  {qty}\n"
+
+        # ---------------- Date Summary Text ----------------
         date_text = ""
         for d, qty in date_summary.items():
             date_text += f"{d}  →  {qty}\n"
 
-
+        # ---------------- Final Report ----------------
         report = f"""
         ====================================
                     STOCK REPORT
@@ -217,15 +245,21 @@ def open_Stock_in_window():
         🏆 Highest Stock Product ID : {highest_product}
         Quantity : {highest_quantity}
 
+        🥇 Top Supplier : {top_supplier}
+        Quantity Supplied : {top_supplier_qty}
+
         ------------------------------------
         📊 Stock Per Product ID:
         {product_text}
 
         ------------------------------------
+        🏢 Stock Per Supplier:
+        {supplier_text}
+
+        ------------------------------------
         📅 Stock Per Date:
         {date_text}
         """
-
 
         messagebox.showinfo("Stock Report", report)
 
