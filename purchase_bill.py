@@ -49,6 +49,22 @@ def open_Purchase_bill_window():
     entry_bill_no = create_input(form_frame, "Bill No")
     entry_product_id = create_input(form_frame, "Product ID")
     entry_product_name = create_input(form_frame, "Product Name")
+    # -------- Supplier Name Combobox --------
+    tk.Label(form_frame, text="Supplier Name",
+            font=("Segoe UI", 10, "bold"),
+            bg="white", fg="#5c7cfa").pack(anchor="w", pady=(5, 5))
+
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+    cur.execute("SELECT supplier_name FROM suppliers")
+    suppliers = [row[0] for row in cur.fetchall()]
+    conn.close()
+
+    entry_supplier_name = ttk.Combobox(form_frame,
+                                    values=suppliers,
+                                    font=("Segoe UI", 10),
+                                    state="readonly")
+    entry_supplier_name.pack(fill="x", ipady=6, pady=(0, 10))
     entry_date = create_input(form_frame, "Date")
     entry_payment = create_input(form_frame, "Payment Method")
     entry_qty = create_input(form_frame, "Quantity")
@@ -77,8 +93,8 @@ def open_Purchase_bill_window():
     black_btn("ANALYSIS", lambda: show_purchase_analysis()).pack(side="left", padx=5)
 
     # Table
-    columns = ("ID", "Bill No", "Product ID", "Product Name",
-               "Date", "Payment", "Qty", "Price")
+    columns = ("RowID", "Bill No", "Product ID", "Product Name",
+           "Supplier Name", "Date", "Payment", "Qty", "Price")
     tree = ttk.Treeview(right_frame, columns=columns, show="headings", height=15)
 
     for col in columns:
@@ -95,7 +111,18 @@ def open_Purchase_bill_window():
 
         conn = sqlite3.connect(db_path)
         cur = conn.cursor()
-        cur.execute("SELECT * FROM purchase_bill")
+        cur.execute("""
+    SELECT bill_id,
+           bill_no,
+           product_id,
+           product_name,
+           supplier_name,
+           date,
+           payment_method,
+           qty_of_product,
+           price
+    FROM purchase_bill
+""")
         rows = cur.fetchall()
         conn.close()
 
@@ -111,8 +138,10 @@ def open_Purchase_bill_window():
         row = tree.item(selected)['values']
         selected_id = row[0]
 
-        fields = [entry_bill_no, entry_product_id, entry_product_name,
-                  entry_date, entry_payment, entry_qty, entry_price]
+        fields = [entry_bill_no, entry_product_id,
+          entry_product_name, entry_supplier_name,
+          entry_date, entry_payment,
+          entry_qty, entry_price]
 
         for i, field in enumerate(fields):
             field.delete(0, tk.END)
@@ -147,12 +176,27 @@ def open_Purchase_bill_window():
 
         conn = sqlite3.connect(db_path)
         cur = conn.cursor()
-        cur.execute("""UPDATE purchase_bill SET bill_no=?, product_id=?, product_name=?,
-                       date=?, payment_method=?, qty_of_product=?, price=? WHERE bill_id=?""",
-                    (entry_bill_no.get(), entry_product_id.get(),
-                     entry_product_name.get(), entry_date.get(),
-                     entry_payment.get(), entry_qty.get(),
-                     entry_price.get(), selected_id))
+        cur.execute("""
+    UPDATE purchase_bill
+    SET bill_no=?,
+        product_id=?,
+        product_name=?,
+        supplier_name=?,
+        date=?,
+        payment_method=?,
+        qty_of_product=?,
+        price=?
+    WHERE bill_id=?
+""",
+(entry_bill_no.get(),
+ entry_product_id.get(),
+ entry_product_name.get(),
+ entry_supplier_name.get(),   # 👈 IMPORTANT
+ entry_date.get(),
+ entry_payment.get(),
+ entry_qty.get(),
+ entry_price.get(),
+ selected_id))
         conn.commit()
         conn.close()
 
