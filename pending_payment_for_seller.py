@@ -54,6 +54,22 @@ def open_pending_seller_window():
     entry_bill_no = create_input(form_frame, "Bill No")
     entry_product_id = create_input(form_frame, "Product ID")
     entry_product_name = create_input(form_frame, "Product Name")
+    # -------- Supplier Name Combobox --------
+    tk.Label(form_frame, text="Supplier Name",
+            font=("Segoe UI", 10, "bold"),
+            bg="white", fg="#5c7cfa").pack(anchor="w", pady=(5, 5))
+
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+    cur.execute("SELECT supplier_name FROM suppliers")
+    suppliers = [row[0] for row in cur.fetchall()]
+    conn.close()
+
+    entry_supplier_name = ttk.Combobox(form_frame,
+                                    values=suppliers,
+                                    font=("Segoe UI", 10),
+                                    state="readonly")
+    entry_supplier_name.pack(fill="x", ipady=6, pady=(0, 10))
     entry_date = create_input(form_frame, "Date")
     entry_payment = create_input(form_frame, "Payment Method")
     entry_qty = create_input(form_frame, "Quantity")
@@ -82,7 +98,8 @@ def open_pending_seller_window():
 
     # ================= TABLE =================
     columns = ("RowID", "Purchase Bill", "Bill No", "Product ID",
-               "Product Name", "Date", "Payment", "Qty", "Price")
+           "Product Name", "Supplier Name",
+           "Date", "Payment", "Qty", "Price")
 
     tree = ttk.Treeview(right_frame, columns=columns,
                         show="headings", height=15)
@@ -101,7 +118,19 @@ def open_pending_seller_window():
 
         conn = sqlite3.connect(db_path)
         cur = conn.cursor()
-        cur.execute("SELECT rowid, * FROM pending_payment_for_seller")
+        cur.execute("""
+    SELECT rowid,
+           purchase_bill,
+           bill_no,
+           product_id,
+           product_name,
+           supplier_name,
+           date,
+           payment_method,
+           qty_of_product,
+           price
+    FROM pending_payment_for_seller
+""")
         rows = cur.fetchall()
         conn.close()
 
@@ -118,18 +147,27 @@ def open_pending_seller_window():
         selected_rowid = row[0]
 
         fields = [entry_purchase_bill, entry_bill_no, entry_product_id,
-                  entry_product_name, entry_date, entry_payment,
-                  entry_qty, entry_price]
+          entry_product_name, entry_supplier_name,
+          entry_date, entry_payment,
+          entry_qty, entry_price]
 
         for i, field in enumerate(fields):
             field.delete(0, tk.END)
             field.insert(0, row[i+1])
 
     def save_entry():
-        data = (entry_purchase_bill.get(), entry_bill_no.get(),
-                entry_product_id.get(), entry_product_name.get(),
-                entry_date.get(), entry_payment.get(),
-                entry_qty.get(), entry_price.get())
+
+        data = (
+            entry_purchase_bill.get(),
+            entry_bill_no.get(),
+            entry_product_id.get(),
+            entry_product_name.get(),
+            entry_supplier_name.get(),
+            entry_date.get(),
+            entry_payment.get(),
+            entry_qty.get(),
+            entry_price.get()
+        )
 
         if "" in data:
             messagebox.showerror("Error", "All fields required")
@@ -137,17 +175,21 @@ def open_pending_seller_window():
 
         conn = sqlite3.connect(db_path)
         cur = conn.cursor()
-        cur.execute("""INSERT INTO pending_payment_for_seller
+
+        cur.execute("""
+            INSERT INTO pending_payment_for_seller
             (purchase_bill, bill_no, product_id, product_name,
-             date, payment_method, qty_of_product, price)
-            VALUES (?,?,?,?,?,?,?,?)""", data)
+            supplier_name, date, payment_method,
+            qty_of_product, price)
+            VALUES (?,?,?,?,?,?,?,?,?)
+        """, data)
+
         conn.commit()
         conn.close()
 
         messagebox.showinfo("Saved", "Entry Saved")
         clear_fields()
         show_data()
-
     def update_entry():
         if not selected_rowid:
             messagebox.showerror("Error", "Select entry first")
@@ -155,14 +197,18 @@ def open_pending_seller_window():
 
         conn = sqlite3.connect(db_path)
         cur = conn.cursor()
-        cur.execute("""UPDATE pending_payment_for_seller
-            SET purchase_bill=?, bill_no=?, product_id=?, product_name=?,
-                date=?, payment_method=?, qty_of_product=?, price=?
-            WHERE rowid=?""",
-            (entry_purchase_bill.get(), entry_bill_no.get(),
-             entry_product_id.get(), entry_product_name.get(),
-             entry_date.get(), entry_payment.get(),
-             entry_qty.get(), entry_price.get(), selected_rowid))
+        cur.execute("""
+    UPDATE pending_payment_for_seller
+    SET purchase_bill=?, bill_no=?, product_id=?, product_name=?,
+        supplier_name=?, date=?, payment_method=?,
+        qty_of_product=?, price=?
+    WHERE rowid=?
+""",
+(entry_purchase_bill.get(), entry_bill_no.get(),
+ entry_product_id.get(), entry_product_name.get(),
+ entry_supplier_name.get(),
+ entry_date.get(), entry_payment.get(),
+ entry_qty.get(), entry_price.get(), selected_rowid))
         conn.commit()
         conn.close()
 
@@ -190,8 +236,9 @@ def open_pending_seller_window():
         nonlocal selected_rowid
         selected_rowid = None
         for field in [entry_purchase_bill, entry_bill_no, entry_product_id,
-                      entry_product_name, entry_date, entry_payment,
-                      entry_qty, entry_price]:
+              entry_product_name, entry_supplier_name,
+              entry_date, entry_payment,
+              entry_qty, entry_price]:
             field.delete(0, tk.END)
         entry_date.insert(0, datetime.now().strftime("%Y-%m-%d"))
 
@@ -209,10 +256,20 @@ def open_pending_seller_window():
         total_bills = df["bill_no"].nunique()
         total_quantity = df["qty_of_product"].sum()
 
-        df["total_amount"] = df["qty_of_product"] * df["price"]
+        df["total_amount"] = df["qty_of_product"].astype(float) * df["price"].astype(float)
         total_pending_amount = df["total_amount"].sum()
 
         average_bill = total_pending_amount / total_bills if total_bills > 0 else 0
+
+        # ---------------- Supplier Analysis ----------------
+        supplier_summary = df.groupby("supplier_name")["total_amount"].sum()
+
+        top_supplier = supplier_summary.idxmax()
+        top_supplier_amount = supplier_summary.max()
+
+        supplier_text = ""
+        for name, amount in supplier_summary.items():
+            supplier_text += f"{name:<20} | ₹ {amount:.2f}\n"
 
         # ---------------- Product Analysis ----------------
         df["product_name"] = df["product_name"].str.strip()
@@ -242,7 +299,6 @@ def open_pending_seller_window():
         oldest_date = df["date"].min()
         newest_date = df["date"].max()
 
-        # Highest pending date
         date_summary = df.groupby("date")["total_amount"].sum()
         top_date = date_summary.idxmax()
         top_date_amount = date_summary.max()
@@ -272,6 +328,15 @@ def open_pending_seller_window():
     📦 Total Pending Quantity      : {total_quantity}
     💰 Total Pending Amount        : ₹ {total_pending_amount:.2f}
     📊 Average Bill Amount         : ₹ {average_bill:.2f}
+
+    ------------------------------------
+    🏢 Supplier Wise Pending Amount
+    ------------------------------------
+    {supplier_text}
+
+    🥇 Top Supplier
+    Supplier                       : {top_supplier}
+    Pending Amount                 : ₹ {top_supplier_amount:.2f}
 
     ------------------------------------
     🏆 Most Pending Product
@@ -304,15 +369,18 @@ def open_pending_seller_window():
 
     Highest Pending Date           : {top_date.date()}
     Amount                         : ₹ {top_date_amount:.2f}
+
     ------------------------------------
     📆 Monthly Pending Summary
     ------------------------------------
     {monthly_report}
+
     ------------------------------------
     ⚠ Risk Analysis
     ------------------------------------
     Pending > 30 Days              : {over_30}
     Pending > 60 Days              : {over_60}
+
     ====================================
     """
 
