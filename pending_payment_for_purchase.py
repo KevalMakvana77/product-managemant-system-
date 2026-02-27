@@ -79,6 +79,22 @@ def open_pending_purchase_window():
     entry_bill_no = create_input(form_frame, "Bill No")
     entry_product_id = create_input(form_frame, "Product ID")
     entry_product_name = create_input(form_frame, "Product Name")
+    # -------- Customer Name Combobox --------
+    tk.Label(form_frame, text="Customer Name",
+            font=("Segoe UI", 10, "bold"),
+            bg="white", fg="#5c7cfa").pack(anchor="w", pady=(5, 5))
+
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+    cur.execute("SELECT customer_name FROM customers")
+    customers = [row[0] for row in cur.fetchall()]
+    conn.close()
+
+    entry_customer_name = ttk.Combobox(form_frame,
+                                    values=customers,
+                                    font=("Segoe UI", 10),
+                                    state="readonly")
+    entry_customer_name.pack(fill="x", ipady=6, pady=(0, 10))
     entry_date = create_input(form_frame, "Date")
     entry_payment = create_input(form_frame, "Payment Method")
     entry_qty = create_input(form_frame, "Quantity")
@@ -114,16 +130,17 @@ def open_pending_purchase_window():
 
     # ================= TABLE =================
     columns = (
-        "RowID",
-        "Purchase Bill",
-        "Bill No",
-        "Product ID",
-        "Product Name",
-        "Date",
-        "Payment",
-        "Qty",
-        "Price"
-    )
+    "RowID",
+    "Purchase Bill",
+    "Bill No",
+    "Product ID",
+    "Product Name",
+    "Customer Name",
+    "Date",
+    "Payment",
+    "Qty",
+    "Price"
+)
 
     tree = ttk.Treeview(
         right_frame,
@@ -146,7 +163,19 @@ def open_pending_purchase_window():
 
         conn = sqlite3.connect(db_path)
         cur = conn.cursor()
-        cur.execute("SELECT rowid, * FROM pending_payment_for_purchase")
+        cur.execute("""
+    SELECT rowid,
+           purchase_bill,
+           bill_no,
+           product_id,
+           product_name,
+           customer_name,
+           date,
+           payment_method,
+           qty_of_product,
+           price
+    FROM pending_payment_for_purchase
+""")
         rows = cur.fetchall()
         conn.close()
 
@@ -163,26 +192,29 @@ def open_pending_purchase_window():
         selected_rowid = row[0]
 
         fields = [
-            entry_purchase_bill,
-            entry_bill_no,
-            entry_product_id,
-            entry_product_name,
-            entry_date,
-            entry_payment,
-            entry_qty,
-            entry_price
-        ]
+    entry_purchase_bill,
+    entry_bill_no,
+    entry_product_id,
+    entry_product_name,
+    entry_customer_name,
+    entry_date,
+    entry_payment,
+    entry_qty,
+    entry_price
+]
 
         for i, field in enumerate(fields):
             field.delete(0, tk.END)
             field.insert(0, row[i + 1])
 
     def save_entry():
+
         data = (
             entry_purchase_bill.get(),
             entry_bill_no.get(),
             entry_product_id.get(),
             entry_product_name.get(),
+            entry_customer_name.get(),
             entry_date.get(),
             entry_payment.get(),
             entry_qty.get(),
@@ -195,11 +227,13 @@ def open_pending_purchase_window():
 
         conn = sqlite3.connect(db_path)
         cur = conn.cursor()
+
         cur.execute("""
             INSERT INTO pending_payment_for_purchase
             (purchase_bill, bill_no, product_id, product_name,
-             date, payment_method, qty_of_product, price)
-            VALUES (?,?,?,?,?,?,?,?)
+            customer_name, date, payment_method,
+            qty_of_product, price)
+            VALUES (?,?,?,?,?,?,?,?,?)
         """, data)
 
         conn.commit()
@@ -217,22 +251,23 @@ def open_pending_purchase_window():
         conn = sqlite3.connect(db_path)
         cur = conn.cursor()
         cur.execute("""
-            UPDATE pending_payment_for_purchase
-            SET purchase_bill=?, bill_no=?, product_id=?,
-                product_name=?, date=?, payment_method=?,
-                qty_of_product=?, price=?
-            WHERE rowid=?
-        """, (
-            entry_purchase_bill.get(),
-            entry_bill_no.get(),
-            entry_product_id.get(),
-            entry_product_name.get(),
-            entry_date.get(),
-            entry_payment.get(),
-            entry_qty.get(),
-            entry_price.get(),
-            selected_rowid
-        ))
+    UPDATE pending_payment_for_purchase
+    SET purchase_bill=?, bill_no=?, product_id=?,
+        product_name=?, customer_name=?, date=?,
+        payment_method=?, qty_of_product=?, price=?
+    WHERE rowid=?
+""", (
+    entry_purchase_bill.get(),
+    entry_bill_no.get(),
+    entry_product_id.get(),
+    entry_product_name.get(),
+    entry_customer_name.get(),
+    entry_date.get(),
+    entry_payment.get(),
+    entry_qty.get(),
+    entry_price.get(),
+    selected_rowid
+))
 
         conn.commit()
         conn.close()
@@ -265,15 +300,16 @@ def open_pending_purchase_window():
         selected_rowid = None
 
         for field in [
-            entry_purchase_bill,
-            entry_bill_no,
-            entry_product_id,
-            entry_product_name,
-            entry_date,
-            entry_payment,
-            entry_qty,
-            entry_price
-        ]:
+    entry_purchase_bill,
+    entry_bill_no,
+    entry_product_id,
+    entry_product_name,
+    entry_customer_name,
+    entry_date,
+    entry_payment,
+    entry_qty,
+    entry_price
+]:
             field.delete(0, tk.END)
 
         entry_date.insert(0, datetime.now().strftime("%Y-%m-%d"))
