@@ -47,7 +47,22 @@ def open_Stock_out_window():
         return e
 
     entry_product_id = create_input(form_frame, "Product ID")
-    entry_customer_id = create_input(form_frame, "Customer ID")
+    # -------- Customer Name Combobox --------
+    tk.Label(form_frame, text="Customer Name",
+            font=("Segoe UI", 10, "bold"),
+            bg="white", fg="#5c7cfa").pack(anchor="w", pady=(5, 5))
+
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+    cur.execute("SELECT customer_name FROM customers")
+    customers = [row[0] for row in cur.fetchall()]
+    conn.close()
+
+    entry_customer_name = ttk.Combobox(form_frame,
+                                    values=customers,
+                                    font=("Segoe UI", 10),
+                                    state="readonly")
+    entry_customer_name.pack(fill="x", ipady=6, pady=(0, 10))
     entry_qty = create_input(form_frame, "Quantity")
     entry_date = create_input(form_frame, "Date (YYYY-MM-DD)")
     entry_date.insert(0, datetime.now().strftime("%Y-%m-%d"))
@@ -72,7 +87,7 @@ def open_Stock_out_window():
     btn_style(btn_frame, "ANALYSIS", "#fa5252", lambda: show_stock_out_analysis()).pack(side="left", padx=5)
 
     # ================= TABLE =================
-    columns = ("ID", "Product ID", "Customer ID", "Quantity", "Date")
+    columns = ("ID", "Product ID", "Customer Name", "Quantity", "Date")
     tree = ttk.Treeview(right_frame, columns=columns, show="headings", height=15)
 
     for col in columns:
@@ -106,22 +121,22 @@ def open_Stock_out_window():
         selected_stock_out_id = values[0]
 
         entry_product_id.delete(0, tk.END)
-        entry_customer_id.delete(0, tk.END)
+        entry_customer_name.delete(0, tk.END)
         entry_qty.delete(0, tk.END)
         entry_date.delete(0, tk.END)
 
         entry_product_id.insert(0, values[1])
-        entry_customer_id.insert(0, values[2])
+        entry_customer_name.insert(0, values[2])
         entry_qty.insert(0, values[3])
         entry_date.insert(0, values[4])
 
     def add_stock_out():
         conn = sqlite3.connect(db_path)
         cur = conn.cursor()
-        cur.execute("""INSERT INTO stock_out (product_id, customer_id, quantity, date)
-                       VALUES (?,?,?,?)""",
-                    (entry_product_id.get(), entry_customer_id.get(),
-                     entry_qty.get(), entry_date.get()))
+        cur.execute("""INSERT INTO stock_out (product_id, customer_name, quantity, date)
+               VALUES (?,?,?,?)""",
+            (entry_product_id.get(), entry_customer_name.get(),
+             entry_qty.get(), entry_date.get()))
         conn.commit()
         conn.close()
 
@@ -136,10 +151,10 @@ def open_Stock_out_window():
 
         conn = sqlite3.connect(db_path)
         cur = conn.cursor()
-        cur.execute("""UPDATE stock_out SET product_id=?, customer_id=?, quantity=?, date=?
-                       WHERE stock_out_id=?""",
-                    (entry_product_id.get(), entry_customer_id.get(),
-                     entry_qty.get(), entry_date.get(), selected_stock_out_id))
+        cur.execute("""UPDATE stock_out SET product_id=?, customer_name=?, quantity=?, date=?
+               WHERE stock_out_id=?""",
+            (entry_product_id.get(), entry_customer_name.get(),
+             entry_qty.get(), entry_date.get(), selected_stock_out_id))
         conn.commit()
         conn.close()
 
@@ -167,7 +182,7 @@ def open_Stock_out_window():
         nonlocal selected_stock_out_id
         selected_stock_out_id = None
         entry_product_id.delete(0, tk.END)
-        entry_customer_id.delete(0, tk.END)
+        entry_customer_name.delete(0, tk.END)
         entry_qty.delete(0, tk.END)
         entry_date.delete(0, tk.END)
         entry_date.insert(0, datetime.now().strftime("%Y-%m-%d"))
@@ -175,22 +190,7 @@ def open_Stock_out_window():
     def show_stock_out_analysis():
         conn = sqlite3.connect(db_path)
 
-        # Join tables to get product & customer names
-        query = """
-        SELECT 
-            s.stock_out_id,
-            s.product_id,
-            p.product_name,
-            s.customer_id,
-            c.customer_name,
-            s.quantity,
-            s.date
-        FROM stock_out s
-        LEFT JOIN products p ON s.product_id = p.product_id
-        LEFT JOIN customers c ON s.customer_id = c.customer_id
-        """
-
-        df = pd.read_sql_query(query, conn)
+        df = pd.read_sql_query("SELECT * FROM stock_out", conn)
         conn.close()
 
         if df.empty:
@@ -200,8 +200,8 @@ def open_Stock_out_window():
         total_records = len(df)
         total_quantity = df["quantity"].sum()
 
-        # ---------------- Top Selling Product ----------------
-        product_sales = df.groupby("product_name")["quantity"].sum()
+        # ---------------- Product Wise ----------------
+        product_sales = df.groupby("product_id")["quantity"].sum()
 
         top_product = product_sales.idxmax()
         top_product_qty = product_sales.max()
@@ -211,7 +211,7 @@ def open_Stock_out_window():
 
         top5_products = product_sales.sort_values(ascending=False).head(5)
 
-        # ---------------- Top Customer ----------------
+        # ---------------- Customer Wise ----------------
         customer_sales = df.groupby("customer_name")["quantity"].sum()
 
         top_customer = customer_sales.idxmax()
@@ -225,7 +225,7 @@ def open_Stock_out_window():
         top_date = date_sales.idxmax()
         top_date_qty = date_sales.max()
 
-        # ---------------- Monthly Summary ----------------
+        # ---------------- Monthly ----------------
         df["date"] = pd.to_datetime(df["date"], errors="coerce")
         df["month"] = df["date"].dt.to_period("M")
 
@@ -236,7 +236,7 @@ def open_Stock_out_window():
         )
 
         top5_summary = "\n".join(
-            [f"{name} : {qty}" for name, qty in top5_products.items()]
+            [f"{pid} : {qty}" for pid, qty in top5_products.items()]
         )
 
         report = f"""
@@ -244,41 +244,30 @@ def open_Stock_out_window():
             STOCK OUT ANALYSIS
     ====================================
 
-    📦 Total Records               : {total_records}
-    🛒 Total Quantity Sold         : {total_quantity}
+    📦 Total Records         : {total_records}
+    🛒 Total Quantity Sold   : {total_quantity}
 
     ------------------------------------
-    🏆 Top Selling Product
+    🏆 Top Product ID
     ------------------------------------
-    Product                        : {top_product}
-    Quantity Sold                  : {top_product_qty}
-
-    ------------------------------------
-    📉 Least Selling Product
-    ------------------------------------
-    Product                        : {least_product}
-    Quantity Sold                  : {least_product_qty}
-
-    ------------------------------------
-    🔥 Top 5 Products
-    ------------------------------------
-    {top5_summary}
+    Product ID               : {top_product}
+    Quantity Sold            : {top_product_qty}
 
     ------------------------------------
     👤 Top Customer
     ------------------------------------
-    Customer                       : {top_customer}
-    Quantity Purchased             : {top_customer_qty}
-    Repeat Customers               : {repeat_customers}
+    Customer                 : {top_customer}
+    Quantity Purchased       : {top_customer_qty}
+    Repeat Customers         : {repeat_customers}
 
     ------------------------------------
     📅 Highest Sale Date
     ------------------------------------
-    Date                           : {top_date}
-    Quantity Sold                  : {top_date_qty}
+    Date                     : {top_date}
+    Quantity Sold            : {top_date_qty}
 
     ------------------------------------
-    📆 Monthly Sales Summary
+    📆 Monthly Summary
     ------------------------------------
     {monthly_summary}
 
