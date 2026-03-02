@@ -6,6 +6,7 @@ import customer, products, purchase_bill, stock_in, stock_out
 import suppliers, godown_stock, shop_info
 import pending_payment_for_purchase, pending_payment_for_seller
 import selling_bill, categories
+import stock_summary
 import fullscreen
 import os
 
@@ -132,19 +133,20 @@ def open_dashboard(root):
         grid_frame.grid_columnconfigure(i, weight=1)
 
     buttons = [
-        ("📂 Categories", categories.open_categories_window),
-        ("📦 Products", products.open_product_window),
-        ("👥 Customers", customer.open_customer_window),
-        ("🚚 Suppliers", suppliers.open_open_Suppliers_window),
-        ("📥 Stock In", stock_in.open_Stock_in_window),
-        ("📤 Stock Out", stock_out.open_Stock_out_window),
-        ("🧾 Purchase Bill", purchase_bill.open_Purchase_bill_window),
-        ("💰 Selling Bill", selling_bill.open_selling_bill_window),
-        ("⌛ Unpaid Suppliers", pending_payment_for_seller.open_pending_seller_window),
-        ("⏳ Unpaid Customers", pending_payment_for_purchase.open_pending_purchase_window),
-        ("🏪 Shop Info", shop_info.open_shop_info_window),
-        ("🏬 Godown Stock", godown_stock.open_godown_stock_window)
-    ]
+    ("📂 Categories", categories.open_categories_window),
+    ("📦 Products", products.open_product_window),
+    ("👥 Customers", customer.open_customer_window),
+    ("🚚 Suppliers", suppliers.open_open_Suppliers_window),
+    ("📥 Stock In", stock_in.open_Stock_in_window),
+    ("📤 Stock Out", stock_out.open_Stock_out_window),
+    ("🧾 Purchase Bill", purchase_bill.open_Purchase_bill_window),
+    ("💰 Selling Bill", selling_bill.open_selling_bill_window),
+    ("⌛ Unpaid Suppliers", pending_payment_for_seller.open_pending_seller_window),
+    ("⏳ Unpaid Customers", pending_payment_for_purchase.open_pending_purchase_window),
+    ("🏪 Shop Info", shop_info.open_shop_info_window),
+    ("🏬 Godown Stock", godown_stock.open_godown_stock_window),
+    ("📊 Stock Summary", stock_summary.open_stock_summary_window)
+]
 
     row, col = 0, 0
     for text, cmd in buttons:
