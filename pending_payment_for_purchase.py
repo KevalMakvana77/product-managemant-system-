@@ -96,7 +96,20 @@ def open_pending_purchase_window():
                                     state="readonly")
     entry_customer_name.pack(fill="x", ipady=6, pady=(0, 10))
     entry_date = create_input(form_frame, "Date")
-    entry_payment = create_input(form_frame, "Payment Method")
+     # -------- Payment Method Combobox --------
+    tk.Label(form_frame, text="Payment Method",
+            font=("Segoe UI", 10, "bold"),
+            bg="white", fg="#5c7cfa").pack(anchor="w", pady=(5, 5))
+
+    payment_methods = ["Cash", "UPI", "Card", "Net Banking", "Cheque", "Pending"]
+
+    entry_payment = ttk.Combobox(
+        form_frame,
+        values=payment_methods,
+        font=("Segoe UI", 10),
+        state="readonly"
+    )
+    entry_payment.pack(fill="x", ipady=6, pady=(0, 10))
     entry_qty = create_input(form_frame, "Quantity")
     entry_price = create_input(form_frame, "Price")
 
