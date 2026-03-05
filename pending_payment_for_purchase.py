@@ -127,6 +127,7 @@ def open_pending_purchase_window():
     black_btn("UPDATE", lambda: update_entry()).pack(side="left", padx=5)
     black_btn("DELETE", lambda: delete_entry()).pack(side="left", padx=5)
     black_btn("ANALYSIS", lambda: show_pending_buyer_analysis()).pack(side="left", padx=5)
+    black_btn("LOGOUT", lambda: win.destroy()).pack(side="right", padx=5)
 
     # ================= TABLE =================
     columns = (

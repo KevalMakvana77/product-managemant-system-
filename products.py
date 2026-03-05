@@ -71,6 +71,7 @@ def open_product_window():
     btn_style(btn_frame, "UPDATE", "#4c6ef5", lambda: update_product()).pack(side="left", padx=5)
     btn_style(btn_frame, "DELETE", "#fa5252", lambda: delete_product()).pack(side="left", padx=5)
     btn_style(btn_frame, "ANALYSIS", "#15aabf", lambda: show_analysis()).pack(side="left", padx=5)
+    btn_style(btn_frame, "LOGOUT", "#fa5252", lambda: win.destroy()).pack(side="right", padx=5)
 
     # ✅ FIXED TREEVIEW
     columns = ("product_id", "product_name", "qty", "sale_price", "mrp")

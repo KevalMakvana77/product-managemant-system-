@@ -110,6 +110,7 @@ def open_selling_bill_window():
     black_btn("DELETE", lambda: delete_bill()).pack(side="left", padx=5)
     black_btn("ANALYSIS", lambda: show_selling_analysis()).pack(side="left", padx=5)
     black_btn("GENERATE BILL", lambda: generate_bill()).pack(side="left", padx=5)
+    black_btn("LOGOUT", lambda: win.destroy()).pack(side="right", padx=5)
 
     # ================= TABLE =================
     columns = ("RowID", "Bill No", "Product ID", "Product Name",

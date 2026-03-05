@@ -68,6 +68,7 @@ def open_godown_stock_window():
     black_btn("SAVE", lambda: save_stock()).pack(side="left", padx=5)
     black_btn("UPDATE", lambda: update_stock()).pack(side="left", padx=5)
     black_btn("DELETE", lambda: delete_stock()).pack(side="left", padx=5)
+    black_btn("LOGOUT", lambda: win.destroy()).pack(side="right", padx=5)
 
     # ================= TABLE =================
     columns = ("ID", "Godown Name", "Product ID")

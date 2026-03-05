@@ -1,3 +1,4 @@
+from logging import root
 import tkinter as tk
 from tkinter import ttk, messagebox
 import sqlite3
@@ -41,6 +42,9 @@ def open_stock_summary_window():
     "Total Sale ₹",
     "Profit ₹"
 )
+    def logout():
+        win.destroy()
+        root.deiconify()
 
     tree = ttk.Treeview(main_frame, columns=columns,
                         show="headings", height=20)
@@ -118,15 +122,29 @@ def open_stock_summary_window():
             ))
 
         conn.close()
+
     # ================= REFRESH BUTTON =================
     refresh_btn = tk.Button(
         win,
         text="REFRESH SUMMARY",
-        bg="black",
-        fg="white",
+        bg="#fa5252", fg="black",
         font=("Segoe UI", 10, "bold"),
+        relief="flat",
+        padx=30,
+        pady=10,
         command=load_stock_summary
     )
     refresh_btn.pack(pady=10)
+
+    btn_logout = tk.Button(win, text="LOGOUT",
+                           command=logout,
+                           bg="#fa5252", fg="black",
+                           font=("Segoe UI", 10, "bold"),
+                           relief="flat",
+                           cursor="pirate",
+                           padx=30,
+                           pady=10)
+
+    btn_logout.pack(side="bottom", pady=30)
 
     load_stock_summary()

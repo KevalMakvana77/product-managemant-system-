@@ -91,6 +91,7 @@ def open_Purchase_bill_window():
     black_btn("UPDATE", lambda: update_bill()).pack(side="left", padx=5)
     black_btn("DELETE", lambda: delete_bill()).pack(side="left", padx=5)
     black_btn("ANALYSIS", lambda: show_purchase_analysis()).pack(side="left", padx=5)
+    black_btn("LOGOUT", lambda: win.destroy()).pack(side="right", padx=5)
 
     # Table
     columns = ("RowID", "Bill No", "Product ID", "Product Name",

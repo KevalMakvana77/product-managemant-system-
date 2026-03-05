@@ -79,6 +79,7 @@ def open_open_Suppliers_window():
     btn_style(btn_frame, "UPDATE", "#4c6ef5", lambda: update_supplier()).pack(side="left", padx=5)
     btn_style(btn_frame, "DELETE", "#fa5252", lambda: delete_supplier()).pack(side="left", padx=5)
     btn_style(btn_frame, "ANALYSIS", "#fa5252", lambda: show_supplier_analysis()).pack(side="left", padx=5)
+    btn_style(btn_frame, "LOGOUT", "#fa5252", lambda: win.destroy()).pack(side="right", padx=5)
 
     # Treeview Table
     columns = ("ID","Name","Mobile","Group","Address","City","Pincode","Email","GST")

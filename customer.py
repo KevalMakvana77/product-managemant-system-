@@ -101,6 +101,7 @@ def open_customer_window():
     btn_style(btn_frame, "UPDATE", "#4c6ef5", lambda: update_customer()).pack(side="left", padx=5)
     btn_style(btn_frame, "DELETE", "#fa5252", lambda: delete_customer()).pack(side="left", padx=5)
     btn_style(btn_frame, "ANALYSIS", "#fa5252", lambda: show_customer_analysis()).pack(side="left", padx=5)
+    btn_style(btn_frame, "LOGOUT", "#fa5252", lambda: win.destroy()).pack(side="right", padx=5)
 
     # ---------- Treeview ----------
     # ---------- Treeview ----------
