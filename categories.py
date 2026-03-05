@@ -68,6 +68,7 @@ def open_categories_window():
     black_btn("UPDATE", lambda: update_category()).pack(side="left", padx=5)
     black_btn("DELETE", lambda: delete_category()).pack(side="left", padx=5)
     black_btn("ANAYLSIS", lambda: show_category_summary()).pack(side="left", padx=5)
+    black_btn("LOGOUT", lambda: win.destroy()).pack(side="right", padx=5)   
 
     # ================= TABLE =================
     columns = ("ID", "Category Name")
