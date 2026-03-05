@@ -47,7 +47,7 @@ def open_pending_purchase_window():
         rely=0.55,
         anchor="center",
         width=1200,
-        height=650
+        height=700
     )
 
     # ================= LEFT FORM =================

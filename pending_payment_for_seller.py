@@ -32,7 +32,7 @@ def open_pending_seller_window():
                           highlightbackground="#e0e0e0",
                           highlightthickness=1)
     main_frame.place(relx=0.5, rely=0.55, anchor="center",
-                     width=1200, height=650)
+                     width=1200, height=700)
 
     # ================= LEFT FORM =================
     form_frame = tk.Frame(main_frame, bg="white")
