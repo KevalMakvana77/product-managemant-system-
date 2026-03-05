@@ -45,22 +45,27 @@ def open_Stock_in_window():
                      highlightcolor="#5c7cfa")
         e.pack(fill="x", ipady=6, pady=(0, 10))
         return e
-
-    # -------- Product Name Combobox --------
+    
     tk.Label(form_frame, text="Product Name",
             font=("Segoe UI", 10, "bold"),
             bg="white", fg="#5c7cfa").pack(anchor="w", pady=(5, 5))
 
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
-    cur.execute("SELECT product_name FROM categories")
+
+    cur.execute("SELECT product_name FROM products")
+
     products = [row[0] for row in cur.fetchall()]
+
     conn.close()
 
-    entry_product_name = ttk.Combobox(form_frame,
-                                    values=products,
-                                    font=("Segoe UI", 10),
-                                    state="readonly")
+    entry_product_name = ttk.Combobox(
+        form_frame,
+        values=products,
+        font=("Segoe UI", 10),
+        state="readonly"
+    )
+
     entry_product_name.pack(fill="x", ipady=6, pady=(0, 10))
     # -------- Supplier Name Combobox --------
     tk.Label(form_frame, text="Supplier Name",
