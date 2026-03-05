@@ -46,7 +46,24 @@ def open_Stock_out_window():
         e.pack(fill="x", ipady=6, pady=(0, 10))
         return e
 
-    entry_product_id = create_input(form_frame, "Product ID")
+    # -------- Product Name Combobox --------
+    tk.Label(form_frame, text="Product Name",
+            font=("Segoe UI", 10, "bold"),
+            bg="white", fg="#5c7cfa").pack(anchor="w", pady=(5, 5))
+
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+    cur.execute("SELECT product_name FROM products")
+    products = [row[0] for row in cur.fetchall()]
+    conn.close()
+
+    entry_product_name = ttk.Combobox(
+        form_frame,
+        values=products,
+        font=("Segoe UI", 10),
+        state="readonly"
+    )
+    entry_product_name.pack(fill="x", ipady=6, pady=(0, 10))
     # -------- Customer Name Combobox --------
     tk.Label(form_frame, text="Customer Name",
             font=("Segoe UI", 10, "bold"),
@@ -88,7 +105,7 @@ def open_Stock_out_window():
     btn_style(btn_frame, "LOGOUT", "#fa5252", lambda: win.destroy()).pack(side="right", padx=5)
 
     # ================= TABLE =================
-    columns = ("ID", "Product ID", "Customer Name", "Quantity", "Date")
+    columns = ("ID", "Product Name", "Customer Name", "Quantity", "Date")
     tree = ttk.Treeview(right_frame, columns=columns, show="headings", height=15)
 
     for col in columns:
@@ -121,12 +138,12 @@ def open_Stock_out_window():
         values = tree.item(selected)['values']
         selected_stock_out_id = values[0]
 
-        entry_product_id.delete(0, tk.END)
+        entry_product_name.delete(0, tk.END)
         entry_customer_name.delete(0, tk.END)
         entry_qty.delete(0, tk.END)
         entry_date.delete(0, tk.END)
 
-        entry_product_id.insert(0, values[1])
+        entry_product_name.insert(0, values[1])
         entry_customer_name.insert(0, values[2])
         entry_qty.insert(0, values[3])
         entry_date.insert(0, values[4])
@@ -134,10 +151,10 @@ def open_Stock_out_window():
     def add_stock_out():
         conn = sqlite3.connect(db_path)
         cur = conn.cursor()
-        cur.execute("""INSERT INTO stock_out (product_id, customer_name, quantity, date)
-               VALUES (?,?,?,?)""",
-            (entry_product_id.get(), entry_customer_name.get(),
-             entry_qty.get(), entry_date.get()))
+        cur.execute("""INSERT INTO stock_out (product_name, customer_name, quantity, date)
+        VALUES (?,?,?,?)""",
+    (entry_product_name.get(), entry_customer_name.get(),
+     entry_qty.get(), entry_date.get()))
         conn.commit()
         conn.close()
 
@@ -152,10 +169,10 @@ def open_Stock_out_window():
 
         conn = sqlite3.connect(db_path)
         cur = conn.cursor()
-        cur.execute("""UPDATE stock_out SET product_id=?, customer_name=?, quantity=?, date=?
-               WHERE stock_out_id=?""",
-            (entry_product_id.get(), entry_customer_name.get(),
-             entry_qty.get(), entry_date.get(), selected_stock_out_id))
+        cur.execute("""UPDATE stock_out SET product_name=?, customer_name=?, quantity=?, date=?
+        WHERE stock_out_id=?""",
+    (entry_product_name.get(), entry_customer_name.get(),
+     entry_qty.get(), entry_date.get(), selected_stock_out_id))
         conn.commit()
         conn.close()
 
@@ -182,7 +199,7 @@ def open_Stock_out_window():
     def clear_fields():
         nonlocal selected_stock_out_id
         selected_stock_out_id = None
-        entry_product_id.delete(0, tk.END)
+        entry_product_name.delete(0, tk.END)
         entry_customer_name.delete(0, tk.END)
         entry_qty.delete(0, tk.END)
         entry_date.delete(0, tk.END)
@@ -202,7 +219,7 @@ def open_Stock_out_window():
         total_quantity = df["quantity"].sum()
 
         # ---------------- Product Wise ----------------
-        product_sales = df.groupby("product_id")["quantity"].sum()
+        product_sales = df.groupby("product_name")["quantity"].sum()
 
         top_product = product_sales.idxmax()
         top_product_qty = product_sales.max()
