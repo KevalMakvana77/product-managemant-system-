@@ -26,7 +26,7 @@ def open_product_window():
                           highlightbackground="#e0e0e0",
                           highlightthickness=1)
     main_frame.place(relx=0.5, rely=0.55, anchor="center",
-                     width=1200, height=650)
+                     width=1200, height=730)
 
     form_frame = tk.Frame(main_frame, bg="white")
     form_frame.pack(side="left", fill="y", padx=15)
@@ -76,8 +76,15 @@ def open_product_window():
     # ✅ FIXED TREEVIEW
     columns = ("product_id", "product_name", "qty", "sale_price", "mrp")
 
-    tree = ttk.Treeview(right_frame, columns=columns,
-                        show="headings", height=18)
+    table_frame = tk.Frame(right_frame, bg="white")
+    table_frame.pack(fill="both", expand=True)
+
+    tree = ttk.Treeview(
+        table_frame,
+        columns=columns,
+        show="headings",
+        height=18
+    )
 
     for col in columns:
         tree.heading(col, text=col.replace("_", " ").title())
@@ -85,6 +92,218 @@ def open_product_window():
 
     tree.pack(fill="both", expand=True)
 
+    # ================= CHATBOT =================
+
+    chat_frame = tk.Frame(
+        right_frame,
+        bg="white",
+        padx=10,
+        pady=10,
+        highlightbackground="#e0e0e0",
+        highlightthickness=1
+    )
+    chat_frame.pack(fill="x", pady=10)
+
+    tk.Label(
+        chat_frame,
+        text="AI Chatbot",
+        font=("Segoe UI", 15, "bold"),
+        bg="white",
+        fg="#5c7cfa"
+    ).pack(anchor="w", pady=(0,5))
+
+
+    chat_display = tk.Listbox(
+        chat_frame,
+        height=6,
+        bg="#f8f9fa",
+        font=("Segoe UI", 9),
+        relief="flat",
+        highlightthickness=1,
+        highlightbackground="#e0e0e0"
+    )
+    chat_display.pack(fill="x", padx=5, pady=5)
+
+
+    entry_chat = tk.Entry(
+        chat_frame,
+        font=("Segoe UI", 10),
+        bg="#f8f9fa",
+        relief="flat",
+        highlightthickness=1,
+        highlightbackground="#e0e0e0",
+        highlightcolor="#5c7cfa"
+    )
+    entry_chat.pack(fill="x", padx=5, pady=5)
+
+    def chatbot_response(event=None):
+
+        user_input = entry_chat.get().lower()
+        entry_chat.delete(0, tk.END)
+
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+
+        response = "Not found"
+
+        # -----------------------------
+        # TOTAL PRODUCTS
+        # -----------------------------
+        if "total product" in user_input:
+
+            cur.execute("SELECT COUNT(*) FROM products")
+            c = cur.fetchone()[0]
+
+            response = f"Total products: {c}"
+
+
+        # -----------------------------
+        # TOTAL QTY
+        # -----------------------------
+        elif "total qty" in user_input:
+
+            cur.execute("SELECT SUM(qty) FROM products")
+            q = cur.fetchone()[0]
+
+            response = f"Total Qty = {q}"
+
+
+        # -----------------------------
+        # TOTAL STOCK VALUE
+        # -----------------------------
+        elif "stock value" in user_input:
+
+            cur.execute("SELECT SUM(qty * sale_price) FROM products")
+            v = cur.fetchone()[0]
+
+            response = f"Total Stock Value = {v}"
+
+
+        # -----------------------------
+        # LOW STOCK
+        # -----------------------------
+        elif "low qty" in user_input or "low stock" in user_input:
+
+            cur.execute("SELECT product_name, qty FROM products WHERE qty < 20")
+            rows = cur.fetchall()
+
+            if rows:
+                response = "Low Stock:\n"
+                for r in rows:
+                    response += f"{r[0]} = {r[1]}\n"
+            else:
+                response = "No low stock"
+
+
+        # -----------------------------
+        # HIGH STOCK
+        # -----------------------------
+        elif "high qty" in user_input or "high stock" in user_input:
+
+            cur.execute("SELECT product_name, qty FROM products WHERE qty > 50")
+            rows = cur.fetchall()
+
+            response = "High Stock:\n"
+
+            for r in rows:
+                response += f"{r[0]} = {r[1]}\n"
+
+
+        # -----------------------------
+        # BARCODE SEARCH
+        # -----------------------------
+        elif "barcode" in user_input:
+
+            words = user_input.split()
+
+            for w in words:
+
+                cur.execute(
+                    "SELECT product_name, barcode_no FROM products WHERE product_name LIKE ?",
+                    ('%' + w + '%',)
+                )
+
+                row = cur.fetchone()
+
+                if row:
+                    response = f"{row[0]} barcode = {row[1]}"
+                    break
+
+
+        # -----------------------------
+        # PRODUCT DETAILS
+        # -----------------------------
+        elif "detail" in user_input or "info" in user_input:
+
+            words = user_input.split()
+
+            for w in words:
+
+                cur.execute("""
+                SELECT product_name, qty, sale_price, mrp, company_name
+                FROM products
+                WHERE product_name LIKE ?
+                """, ('%' + w + '%',))
+
+                row = cur.fetchone()
+
+                if row:
+
+                    response = f"""
+    Name : {row[0]}
+    Qty : {row[1]}
+    Price : {row[2]}
+    MRP : {row[3]}
+    Company : {row[4]}
+    """
+                    break
+
+
+        # -----------------------------
+        # NAME SEARCH
+        # -----------------------------
+        else:
+
+            words = user_input.split()
+
+            for w in words:
+
+                cur.execute("""
+                SELECT product_name, qty, sale_price
+                FROM products
+                WHERE product_name LIKE ?
+                """, ('%' + w + '%',))
+
+                row = cur.fetchone()
+
+                if row:
+
+                    response = f"{row[0]} | Qty={row[1]} | Price={row[2]}"
+                    break
+
+
+        conn.close()
+
+        chat_display.insert(tk.END, "You: " + user_input)
+        chat_display.insert(tk.END, "Bot: " + str(response))
+        chat_display.insert(tk.END, "------------------")
+
+    def blue_btn(text, cmd):
+        return tk.Button(
+            chat_frame,
+            text=text,
+            command=cmd,
+            bg="#5c7cfa",
+            fg="black",
+            font=("Segoe UI", 9, "bold"),
+            relief="flat",
+            cursor="hand2",
+            width=10,
+            pady=5
+        )
+
+
+    blue_btn("ASK", chatbot_response).pack(pady=5)
     # ================= FUNCTIONS =================
 
     def fetch_products():
