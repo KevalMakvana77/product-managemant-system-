@@ -4,6 +4,30 @@ import sqlite3
 import os
 import fullscreen
 import pandas as pd
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+
+# ---------- Chatbot Training Data ----------
+
+training_questions = [
+    "how many categories",
+    "total categories",
+    "show all categories",
+    "list categories"
+]
+
+training_labels = [
+    "count",
+    "count",
+    "list",
+    "list"
+]
+
+vectorizer = TfidfVectorizer()
+X = vectorizer.fit_transform(training_questions)
+
+model = LogisticRegression()
+model.fit(X, training_labels)
 
 def open_categories_window():
 
@@ -82,6 +106,105 @@ def open_categories_window():
     tree.column("Category Name", width=200)
 
     tree.pack(fill="both", expand=True)
+
+    # ================= CHATBOT =================
+
+    # ================= CHATBOT =================
+
+    chat_frame = tk.Frame(
+        right_frame,
+        bg="white",
+        padx=10,
+        pady=10,
+        highlightbackground="#e0e0e0",
+        highlightthickness=1
+    )
+    chat_frame.pack(fill="x", pady=10)
+
+    tk.Label(
+        chat_frame,
+        text="AI Chatbot",
+        font=("Segoe UI", 15, "bold"),
+        bg="white",
+        fg="#5c7cfa"
+    ).pack(anchor="w", pady=(0,5))
+
+
+    chat_display = tk.Listbox(
+        chat_frame,
+        height=6,
+        bg="#f8f9fa",
+        font=("Segoe UI", 9),
+        relief="flat",
+        highlightthickness=1,
+        highlightbackground="#e0e0e0"
+    )
+    chat_display.pack(fill="x", padx=5, pady=5)
+
+
+    entry_chat = tk.Entry(
+        chat_frame,
+        font=("Segoe UI", 10),
+        bg="#f8f9fa",
+        relief="flat",
+        highlightthickness=1,
+        highlightbackground="#e0e0e0",
+        highlightcolor="#5c7cfa"
+    )
+    entry_chat.pack(fill="x", padx=5, pady=5)
+
+
+    def chatbot_response():
+
+        user_input = entry_chat.get()
+        entry_chat.delete(0, tk.END)
+
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+
+        X_test = vectorizer.transform([user_input])
+        prediction = model.predict(X_test)[0]
+
+        response = ""
+
+        if prediction == "count":
+            cur.execute("SELECT COUNT(*) FROM categories")
+            count = cur.fetchone()[0]
+            response = f"Total Categories: {count}"
+
+        elif prediction == "list":
+            cur.execute("SELECT category_name FROM categories")
+            names = cur.fetchall()
+            response = "Categories:- \n" + "\n".join([n[0] for n in names])
+
+        else:
+            response = "Sorry, I didn't understand."
+
+        conn.close()
+
+        chat_display.insert(tk.END, "You: " + user_input)
+
+        chat_display.insert(tk.END, "Bot:" + response)
+    
+        chat_display.insert(tk.END, "-----------------------")
+
+    def blue_btn(text, cmd):
+        return tk.Button(
+            chat_frame,
+            text=text,
+            command=cmd,
+            bg="#5c7cfa",
+            fg="black",
+            font=("Segoe UI", 9, "bold"),
+            relief="flat",
+            cursor="hand2",
+            width=10,
+            pady=5
+        )
+
+
+    blue_btn("ASK", chatbot_response).pack(pady=5)
+    
 
     # ================= LOGIC =================
 
