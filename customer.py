@@ -4,6 +4,9 @@ import sqlite3
 import os
 import fullscreen
 import pandas as pd
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+import numpy as np
 
 def open_customer_window():
 
@@ -15,6 +18,83 @@ def open_customer_window():
 
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     db_path = os.path.join(BASE_DIR, "product_stock_name.db")
+
+    # ---------- Chatbot Training Data ----------
+
+    training_questions = [
+
+"total customers",
+"how many customers",
+"customers count",
+
+"list customers",
+"show customers",
+
+"customer detail",
+"find customer",
+"customer name",
+"name",
+
+"customer mobile",
+"mobile number",
+"number",
+"phone number",
+
+"customer city",
+"city",
+
+"customer email",
+"email",
+
+"customer gst",
+"gst",
+"gst number",
+
+"customer pincode",
+"pincode",
+
+]
+
+    training_labels = [
+
+    "count",
+    "count",
+    "count",
+
+    "list",
+    "list",
+
+    "detail",
+    "detail",
+    "detail",
+    "detail",
+
+    "mobile",
+    "number",
+    "number",
+    "number",
+
+    "city",
+    "city",
+
+    "email",
+    "email",
+
+    "gst",
+    "gst",
+    "gst",
+
+    "pincode",
+    "pincode",
+
+    ]
+
+    
+    vectorizer = TfidfVectorizer()
+    X = vectorizer.fit_transform(training_questions)
+
+    model = LogisticRegression()
+    model.fit(X, training_labels)
 
     selected_customer_id = None
 
@@ -39,7 +119,7 @@ def open_customer_window():
         highlightbackground="#e0e0e0",
         highlightthickness=1
     )
-    main_frame.place(relx=0.5, rely=0.55, anchor="center",width=1200, height=800)
+    main_frame.place(relx=0.5, rely=0.55, anchor="center",width=1200, height=730)
 
     # ================= LEFT FORM =================
     form_frame = tk.Frame(main_frame, bg="white")
@@ -114,6 +194,239 @@ def open_customer_window():
         tree.column(col, width=120)
 
     tree.pack(fill="both", expand=True)
+
+        # ================= CHATBOT =================
+
+    chat_frame = tk.Frame(
+        right_frame,
+        bg="white",
+        padx=10,
+        pady=10,
+        highlightbackground="#e0e0e0",
+        highlightthickness=1
+    )
+    chat_frame.pack(fill="x", pady=10)
+
+    tk.Label(
+        chat_frame,
+        text="AI Chatbot",
+        font=("Segoe UI", 10, "bold"),
+        bg="white",
+        fg="#5c7cfa"
+    ).pack(anchor="w", pady=(0,5))
+
+
+    chat_display = tk.Listbox(
+        chat_frame,
+        height=6,
+        bg="#f8f9fa",
+        font=("Segoe UI", 9),
+        relief="flat",
+        highlightthickness=1,
+        highlightbackground="#e0e0e0"
+    )
+    chat_display.pack(fill="x", padx=5, pady=5)
+
+
+    entry_chat = tk.Entry(
+        chat_frame,
+        font=("Segoe UI", 10),
+        bg="#f8f9fa",
+        relief="flat",
+        highlightthickness=1,
+        highlightbackground="#e0e0e0",
+        highlightcolor="#5c7cfa"
+    )
+    entry_chat.pack(fill="x", padx=5, pady=5)
+
+    def chatbot_response(event=None):
+
+        user_input = entry_chat.get()
+        entry_chat.delete(0, tk.END)
+
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+
+        X_test = vectorizer.transform([user_input])
+        prediction = model.predict(X_test)[0]
+
+        response = "Not found"
+
+
+        # ---------- COUNT ----------
+        if prediction == "count":
+
+            cur.execute("SELECT COUNT(*) FROM customers")
+            c = cur.fetchone()[0]
+
+            response = f"Total customers = {c}"
+
+
+        # ---------- LIST ----------
+        elif prediction == "list":
+
+            cur.execute("SELECT customer_name FROM customers")
+            rows = cur.fetchall()
+
+            names = [r[0] for r in rows]
+
+            response = "Customers:\n" + "\n".join(names)
+
+
+        # ---------- DETAIL ----------
+        elif prediction == "detail":
+
+            words = user_input.split()
+
+            for w in words:
+
+                cur.execute("""
+                    SELECT customer_name, mobile, city, gstno,email
+                    FROM customers
+                    WHERE customer_name LIKE ?
+                """, ('%' + w + '%',))
+
+                row = cur.fetchone()
+
+                if row:
+
+                    response = f"""
+    Name : {row[0]}
+    Mobile : {row[1]}
+    City : {row[2]}
+    GST : {row[3]}
+    """
+                    break
+
+
+        # ---------- MOBILE ----------
+        elif prediction == "mobile":
+
+            words = user_input.split()
+
+            for w in words:
+
+                cur.execute("""
+                    SELECT customer_name, mobile
+                    FROM customers
+                    WHERE customer_name LIKE ?
+                """, ('%' + w + '%',))
+
+                row = cur.fetchone()
+
+                if row:
+                    response = f"{row[0]} mobile = {row[1]}"
+                    break
+
+        elif prediction == "number":
+
+            words = user_input.split()
+
+            for w in words:
+
+                cur.execute("""
+                    SELECT customer_name, mobile, city, gstno
+                    FROM customers
+                    WHERE mobile LIKE ?
+                """, ('%' + w + '%',))
+
+                row = cur.fetchone()
+
+                if row:
+
+                    response = f"""
+        Name : {row[0]}
+        Mobile : {row[1]}
+        City : {row[2]}
+        GST : {row[3]}
+        """
+                    break
+
+        elif prediction == "gst":
+
+            words = user_input.split()
+
+            for w in words:
+
+                cur.execute("""
+                    SELECT customer_name, mobile, city, gstno
+                    FROM customers
+                    WHERE gstno LIKE ?
+                """, ('%' + w + '%',))
+
+                row = cur.fetchone()
+
+                if row:
+                    response = f"{row[0]} | {row[1]} | {row[2]} | {row[3]}"
+                    break
+
+        elif prediction == "pincode":
+
+            words = user_input.split()
+
+            for w in words:
+
+                cur.execute("""
+                    SELECT customer_name, pincode
+                    FROM customers
+                    WHERE pincode LIKE ?
+                """, ('%' + w + '%',))
+
+                rows = cur.fetchall()
+
+                if rows:
+                    response = f"{rows[0][0]} pincode = {rows[0][1]}"
+                    break
+        
+        elif prediction == "email":
+
+            words = user_input.split()
+
+            for w in words:
+
+                cur.execute("""
+                    SELECT customer_name, email
+                    FROM customers
+                    WHERE email LIKE ?
+                """, ('%' + w + '%',))
+
+                row = cur.fetchone()
+
+                if row:
+                    response = f"{row[0]} email = {row[1]}"
+                    break
+
+        # ---------- CITY ----------
+        elif prediction == "city":
+
+            words = user_input.split()
+
+            for w in words:
+
+                cur.execute("""
+                    SELECT customer_name, city
+                    FROM customers
+                    WHERE customer_name LIKE ?
+                """, ('%' + w + '%',))
+
+                row = cur.fetchone()
+
+                if row:
+                    response = f"{row[0]} city = {row[1]}"
+                    break
+
+
+        conn.close()
+
+        chat_display.insert(tk.END, "You: " + user_input)
+        chat_display.insert(tk.END, "Bot: " + str(response))
+        chat_display.insert(tk.END, "-----------------")
+        
+
+            
+    entry_chat.bind("<Return>", chatbot_response)
+
+    btn_style(chat_frame, "ASK", "#5c7cfa", chatbot_response).pack(pady=8)
 
 
 
