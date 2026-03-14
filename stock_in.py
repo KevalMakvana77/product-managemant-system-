@@ -5,6 +5,9 @@ import os
 from datetime import datetime
 import pandas as pd
 import fullscreen
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+import numpy as np
 
 def open_Stock_in_window():
 
@@ -18,6 +21,94 @@ def open_Stock_in_window():
     db_path = os.path.join(BASE_DIR, "product_stock_name.db")
 
     selected_stock_id = None
+
+    # ---------- AI TRAINING ----------
+
+    training_questions = [
+
+    "total stock",
+    "how many stock",
+    "stock count",
+    "stock records",
+
+    "list stock",
+    "show stock",
+    "all stock",
+    "stock list",
+
+    "stock of product",
+    "product stock",
+    "how much product",
+    "product quantity",
+
+    "supplier stock",
+    "stock by supplier",
+    "supplier quantity",
+    "who supplied",
+
+    "stock date",
+    "date stock",
+    "stock on date",
+
+    "total quantity",
+    "sum quantity",
+    "all quantity",
+
+    "find product",
+    "search product",
+    "stock of pen",
+    "stock of mouse",
+
+    "find supplier",
+    "search supplier",
+
+    ]
+
+    training_labels = [
+
+    "count",
+    "count",
+    "count",
+    "count",
+
+    "list",
+    "list",
+    "list",
+    "list",
+
+    "product",
+    "product",
+    "product",
+    "product",
+
+    "supplier",
+    "supplier",
+    "supplier",
+    "supplier",
+
+    "date",
+    "date",
+    "date",
+
+    "qty",
+    "qty",
+    "qty",
+
+    "product",
+    "product",
+    "product",
+    "product",
+
+    "supplier",
+    "supplier",
+
+    ]
+
+    vectorizer = TfidfVectorizer()
+    X = vectorizer.fit_transform(training_questions)
+
+    model = LogisticRegression()
+    model.fit(X, training_labels)
 
     # ================= HEADER =================
     header = tk.Frame(win, bg="#5c7cfa", height=80)
@@ -117,7 +208,183 @@ def open_Stock_in_window():
 
     tree.pack(fill="both", expand=True)
 
-    # ================= LOGIC =================
+    # ================= CHATBOT =================
+
+    chat_frame = tk.Frame(
+        right_frame,
+        bg="white",
+        padx=10,
+        pady=10,
+        highlightbackground="#e0e0e0",
+        highlightthickness=1
+    )
+    chat_frame.pack(fill="x", pady=10)
+
+    tk.Label(
+        chat_frame,
+        text="AI Chatbot",
+        font=("Segoe UI", 10, "bold"),
+        bg="white",
+        fg="#5c7cfa"
+    ).pack(anchor="w", pady=(0,5))
+
+
+    chat_display = tk.Listbox(
+        chat_frame,
+        height=6,
+        bg="#f8f9fa",
+        font=("Segoe UI", 9),
+        relief="flat",
+        highlightthickness=1,
+        highlightbackground="#e0e0e0"
+    )
+    chat_display.pack(fill="x", padx=5, pady=5)
+
+
+    entry_chat = tk.Entry(
+        chat_frame,
+        font=("Segoe UI", 10),
+        bg="#f8f9fa",
+        relief="flat",
+        highlightthickness=1,
+        highlightbackground="#e0e0e0",
+        highlightcolor="#5c7cfa"
+    )
+    entry_chat.pack(fill="x", padx=5, pady=5)
+
+    def chatbot_response(event=None):
+
+        user_input = entry_chat.get().lower()
+        entry_chat.delete(0, tk.END)
+
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+
+        X_test = vectorizer.transform([user_input])
+        prediction = model.predict(X_test)[0]
+
+        response = "Not found"
+
+
+        # ---------- COUNT ----------
+        if prediction == "count":
+
+            cur.execute("SELECT COUNT(*) FROM stock_in")
+            c = cur.fetchone()[0]
+
+            response = f"Total records = {c}"
+
+
+        # ---------- LIST ----------
+        elif prediction == "list":
+
+            cur.execute("SELECT product_name, quantity FROM stock_in")
+            rows = cur.fetchall()
+
+            text = ""
+            for r in rows:
+                text += f"{r[0]} = {r[1]}\n"
+
+            response = text
+
+
+        # ---------- PRODUCT SEARCH ----------
+        elif prediction == "product":
+
+            words = user_input.split()
+
+            for w in words:
+
+                cur.execute("""
+                SELECT product_name, quantity, supplier_name, date
+                FROM stock_in
+                WHERE product_name LIKE ?
+                """, ('%' + w + '%',))
+
+                row = cur.fetchone()
+
+                if row:
+                    response = f"""
+    Product : {row[0]}
+    Qty : {row[1]}
+    Supplier : {row[2]}
+    Date : {row[3]}
+    """
+                    break
+
+
+        # ---------- SUPPLIER SEARCH ----------
+        elif prediction == "supplier":
+
+            words = user_input.split()
+
+            for w in words:
+
+                cur.execute("""
+                SELECT product_name, quantity, supplier_name
+                FROM stock_in
+                WHERE supplier_name LIKE ?
+                """, ('%' + w + '%',))
+
+                row = cur.fetchone()
+
+                if row:
+                    response = f"""
+    Supplier : {row[2]}
+    Product : {row[0]}
+    Qty : {row[1]}
+    """
+                    break
+
+
+        # ---------- DATE SEARCH ----------
+            # DATE SEARCH
+        elif prediction == "date":
+
+            words = user_input.split()
+
+            found = False
+
+            for w in words:
+
+                cur.execute("""
+                SELECT product_name, quantity, date
+                FROM stock_in
+                WHERE date LIKE ?
+                """, ('%' + w + '%',))
+
+                row = cur.fetchone()
+
+                if row:
+                    response = f"""
+    Product : {row[0]}
+    Qty : {row[1]}
+    Date : {row[2]}
+    """
+                    found = True
+                    break
+
+            if not found:
+                response = "No stock found for that date"
+
+
+        # ---------- TOTAL QTY ----------
+        elif prediction == "qty":
+
+            cur.execute("SELECT SUM(quantity) FROM stock_in")
+            total = cur.fetchone()[0]
+
+            response = f"Total quantity = {total}"
+
+
+        conn.close()
+
+        chat_display.insert(tk.END, "You: " + user_input)
+        chat_display.insert(tk.END, "Bot: " + str(response))
+        chat_display.insert(tk.END, "--------------")
+    
+    entry_chat.bind("<Return>", chatbot_response)
+    btn_style(chat_frame, "ASK", "#5c7cfa", chatbot_response).pack(pady=5)
 
     def show_stock():
         for i in tree.get_children():
