@@ -4,6 +4,9 @@ import sqlite3
 import os
 import pandas as pd
 import fullscreen
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+import numpy as np
 
 def open_open_Suppliers_window():
 
@@ -15,6 +18,66 @@ def open_open_Suppliers_window():
 
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     db_path = os.path.join(BASE_DIR, "product_stock_name.db")
+
+    training_questions = [
+
+"total suppliers",
+"how many suppliers",
+"supplier count",
+
+"list suppliers",
+"show suppliers",
+
+"supplier detail",
+"find supplier",
+"supplier name",
+
+"supplier mobile",
+"mobile number",
+
+"supplier city",
+
+"supplier gst",
+"gst number",
+
+"supplier email",
+
+"supplier pincode",
+
+]
+
+    training_labels = [
+
+    "count",
+    "count",
+    "count",
+
+    "list",
+    "list",
+
+    "detail",
+    "detail",
+    "detail",
+
+    "mobile",
+    "mobile",
+
+    "city",
+
+    "gst",
+    "gst",
+
+    "email",
+
+    "pincode",
+
+    ]
+
+    vectorizer = TfidfVectorizer()
+    X = vectorizer.fit_transform(training_questions)
+
+    model = LogisticRegression()
+    model.fit(X, training_labels)
 
     selected_supplier_id = None
 
@@ -91,6 +154,219 @@ def open_open_Suppliers_window():
         tree.column(col, width=120)
 
     tree.pack(fill="both", expand=True)
+
+    # ================= CHATBOT =================
+
+    chat_frame = tk.Frame(
+        right_frame,
+        bg="white",
+        padx=10,
+        pady=10,
+        highlightbackground="#e0e0e0",
+        highlightthickness=1
+    )
+    chat_frame.pack(fill="x", pady=10)
+
+    tk.Label(
+        chat_frame,
+        text="AI Chatbot",
+        font=("Segoe UI", 10, "bold"),
+        bg="white",
+        fg="#5c7cfa"
+    ).pack(anchor="w", pady=(0,5))
+
+
+    chat_display = tk.Listbox(
+        chat_frame,
+        height=6,
+        bg="#f8f9fa",
+        font=("Segoe UI", 9),
+        relief="flat",
+        highlightthickness=1,
+        highlightbackground="#e0e0e0"
+    )
+    chat_display.pack(fill="x", padx=5, pady=5)
+
+
+    entry_chat = tk.Entry(
+        chat_frame,
+        font=("Segoe UI", 10),
+        bg="#f8f9fa",
+        relief="flat",
+        highlightthickness=1,
+        highlightbackground="#e0e0e0",
+        highlightcolor="#5c7cfa"
+    )
+    entry_chat.pack(fill="x", padx=5, pady=5)
+
+    def chatbot_response(event=None):
+
+        user_input = entry_chat.get()
+        entry_chat.delete(0, tk.END)
+
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+
+        X_test = vectorizer.transform([user_input])
+        prediction = model.predict(X_test)[0]
+
+        response = "Not found"
+
+
+        # ---------- COUNT ----------
+        if prediction == "count":
+
+            cur.execute("SELECT COUNT(*) FROM suppliers")
+            c = cur.fetchone()[0]
+
+            response = f"Total suppliers = {c}"
+
+
+        # ---------- LIST ----------
+        elif prediction == "list":
+
+            cur.execute("SELECT supplier_name FROM suppliers")
+            rows = cur.fetchall()
+
+            names = [r[0] for r in rows]
+
+            response = "Suppliers:\n" + "\n".join(names)
+
+
+        # ---------- DETAIL ----------
+        elif prediction == "detail":
+
+            words = user_input.split()
+
+            for w in words:
+
+                cur.execute("""
+                    SELECT supplier_name, mobile, city, gstno
+                    FROM suppliers
+                    WHERE supplier_name LIKE ?
+                """, ('%' + w + '%',))
+
+                row = cur.fetchone()
+
+                if row:
+
+                    response = f"""
+    Name : {row[0]}
+    Mobile : {row[1]}
+    City : {row[2]}
+    GST : {row[3]}
+    """
+                    break
+
+
+        # ---------- MOBILE ----------
+        elif prediction == "mobile":
+
+            words = user_input.split()
+
+            for w in words:
+
+                cur.execute("""
+                    SELECT supplier_name, mobile
+                    FROM suppliers
+                    WHERE supplier_name LIKE ?
+                """, ('%' + w + '%',))
+
+                row = cur.fetchone()
+
+                if row:
+                    response = f"{row[0]} mobile = {row[1]}"
+                    break
+
+
+        # ---------- GST ----------
+        elif prediction == "gst":
+
+            words = user_input.split()
+
+            for w in words:
+
+                cur.execute("""
+                    SELECT supplier_name, gstno
+                    FROM suppliers
+                    WHERE gstno LIKE ?
+                """, ('%' + w + '%',))
+
+                row = cur.fetchone()
+
+                if row:
+                    response = f"{row[0]} GST = {row[1]}"
+                    break
+
+
+        # ---------- CITY ----------
+        elif prediction == "city":
+
+            words = user_input.split()
+
+            for w in words:
+
+                cur.execute("""
+                    SELECT supplier_name, city
+                    FROM suppliers
+                    WHERE supplier_name LIKE ?
+                """, ('%' + w + '%',))
+
+                row = cur.fetchone()
+
+                if row:
+                    response = f"{row[0]} city = {row[1]}"
+                    break
+
+
+        # ---------- EMAIL ----------
+        elif prediction == "email":
+
+            words = user_input.split()
+
+            for w in words:
+
+                cur.execute("""
+                    SELECT supplier_name, email
+                    FROM suppliers
+                    WHERE email LIKE ?
+                """, ('%' + w + '%',))
+
+                row = cur.fetchone()
+
+                if row:
+                    response = f"{row[0]} email = {row[1]}"
+                    break
+
+
+        # ---------- PINCODE ----------
+        elif prediction == "pincode":
+
+            words = user_input.split()
+
+            for w in words:
+
+                cur.execute("""
+                    SELECT supplier_name, pincode
+                    FROM suppliers
+                    WHERE pincode LIKE ?
+                """, ('%' + w + '%',))
+
+                row = cur.fetchone()
+
+                if row:
+                    response = f"{row[0]} pincode = {row[1]}"
+                    break
+
+
+        conn.close()
+
+        chat_display.insert(tk.END, "You: " + user_input)
+        chat_display.insert(tk.END, "Bot: " + str(response))
+        chat_display.insert(tk.END, "-----------------")
+
+    entry_chat.bind("<Return>", chatbot_response)
+    btn_style(chat_frame, "ASK", "#5c7cfa", chatbot_response).pack(pady=5)
 
 
     # ================= LOGIC =================
