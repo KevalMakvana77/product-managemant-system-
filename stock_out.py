@@ -5,6 +5,9 @@ import os
 from datetime import datetime
 import pandas as pd
 import fullscreen
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+import numpy as np
 
 def open_Stock_out_window():
 
@@ -18,6 +21,82 @@ def open_Stock_out_window():
     db_path = os.path.join(BASE_DIR, "product_stock_name.db")
 
     selected_stock_out_id = None
+
+    # ---------- AI TRAINING ----------
+
+    training_questions = [
+
+    "total stock out",
+    "stock out count",
+    "how many sold",
+
+    "list stock out",
+    "show stock out",
+
+    "product sold",
+    "stock out product",
+
+    "customer stock",
+    "customer purchase",
+
+    "date stock out",
+    "sale date",
+
+    "total quantity",
+    "sum quantity",
+
+    "top product",
+    "best product",
+
+    "top customer",
+    "best customer",
+
+    "latest sale",
+
+    "report",
+    "analysis"
+
+    ]
+
+    training_labels = [
+
+    "count",
+    "count",
+    "count",
+
+    "list",
+    "list",
+
+    "product",
+    "product",
+
+    "customer",
+    "customer",
+
+    "date",
+    "date",
+
+    "qty",
+    "qty",
+
+    "top_product",
+    "top_product",
+
+    "top_customer",
+    "top_customer",
+
+    "latest",
+
+    "report",
+    "report"
+
+    ]
+
+    vectorizer = TfidfVectorizer()
+    X = vectorizer.fit_transform(training_questions)
+
+    model = LogisticRegression()
+    model.fit(X, training_labels)
 
     # ================= HEADER =================
     header = tk.Frame(win, bg="#5c7cfa", height=80)
@@ -105,7 +184,7 @@ def open_Stock_out_window():
     btn_style(btn_frame, "LOGOUT", "#fa5252", lambda: win.destroy()).pack(side="right", padx=5)
 
     # ================= TABLE =================
-    columns = ("ID", "Product Name", "Customer Name", "Quantity", "Date")
+    columns = ("stock_out_id", "product_name", "customer_name", "quantity", "date")
     tree = ttk.Treeview(right_frame, columns=columns, show="headings", height=15)
 
     for col in columns:
@@ -113,6 +192,215 @@ def open_Stock_out_window():
         tree.column(col, width=120)
 
     tree.pack(fill="both", expand=True)
+
+     # ================= CHATBOT =================
+
+    chat_frame = tk.Frame(
+        right_frame,
+        bg="white",
+        padx=10,
+        pady=10,
+        highlightbackground="#e0e0e0",
+        highlightthickness=1
+    )
+    chat_frame.pack(fill="x", pady=10)
+
+    tk.Label(
+        chat_frame,
+        text="AI Chatbot",
+        font=("Segoe UI", 10, "bold"),
+        bg="white",
+        fg="#5c7cfa"
+    ).pack(anchor="w", pady=(0,5))
+
+
+    chat_display = tk.Listbox(
+        chat_frame,
+        height=6,
+        bg="#f8f9fa",
+        font=("Segoe UI", 9),
+        relief="flat",
+        highlightthickness=1,
+        highlightbackground="#e0e0e0"
+    )
+    chat_display.pack(fill="x", padx=5, pady=5)
+
+
+    entry_chat = tk.Entry(
+        chat_frame,
+        font=("Segoe UI", 10),
+        bg="#f8f9fa",
+        relief="flat",
+        highlightthickness=1,
+        highlightbackground="#e0e0e0",
+        highlightcolor="#5c7cfa"
+    )
+    entry_chat.pack(fill="x", padx=5, pady=5)
+
+    def chatbot_response(event=None):
+
+        user_input = entry_chat.get().lower()
+        entry_chat.delete(0, tk.END)
+
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+
+        X_test = vectorizer.transform([user_input])
+        prediction = model.predict(X_test)[0]
+
+        response = "Not found"
+
+
+        # COUNT
+        if prediction == "count":
+
+            cur.execute("SELECT COUNT(*) FROM stock_out")
+            response = cur.fetchone()[0]
+
+
+        # LIST
+        elif prediction == "list":
+
+            cur.execute("SELECT product_name FROM stock_out")
+            rows = cur.fetchall()
+
+            response = "\n".join([r[0] for r in rows])
+
+
+        # PRODUCT
+        elif prediction == "product":
+
+            words = user_input.split()
+
+            for w in words:
+
+                cur.execute("""
+                SELECT product_name, quantity, date
+                FROM stock_out
+                WHERE product_name LIKE ?
+                """, ('%' + w + '%',))
+
+                row = cur.fetchone()
+
+                if row:
+                    response = f"{row[0]} = {row[1]} ({row[2]})"
+                    break
+
+
+        # CUSTOMER
+        elif prediction == "customer":
+
+            words = user_input.split()
+
+            for w in words:
+
+                cur.execute("""
+                SELECT customer_name, quantity
+                FROM stock_out
+                WHERE customer_name LIKE ?
+                """, ('%' + w + '%',))
+
+                row = cur.fetchone()
+
+                if row:
+                    response = f"{row[0]} = {row[1]}"
+                    break
+
+
+        # DATE
+        elif prediction == "date":
+
+            words = user_input.split()
+
+            for w in words:
+
+                cur.execute("""
+                SELECT product_name, quantity, date
+                FROM stock_out
+                WHERE date LIKE ?
+                """, ('%' + w + '%',))
+
+                row = cur.fetchone()
+
+                if row:
+                    response = f"{row[0]} {row[1]} {row[2]}"
+                    break
+
+
+        # TOTAL QTY
+        elif prediction == "qty":
+
+            cur.execute("SELECT SUM(quantity) FROM stock_out")
+            response = cur.fetchone()[0]
+
+
+        # TOP PRODUCT
+        elif prediction == "top_product":
+
+            cur.execute("""
+            SELECT product_name, SUM(quantity) as q
+            FROM stock_out
+            GROUP BY product_name
+            ORDER BY q DESC
+            LIMIT 1
+            """)
+
+            row = cur.fetchone()
+
+            response = f"Top product = {row[0]} ({row[1]})"
+
+
+        # TOP CUSTOMER
+        elif prediction == "top_customer":
+
+            cur.execute("""
+            SELECT customer_name, SUM(quantity) as q
+            FROM stock_out
+            GROUP BY customer_name
+            ORDER BY q DESC
+            LIMIT 1
+            """)
+
+            row = cur.fetchone()
+
+            response = f"Top customer = {row[0]} ({row[1]})"
+
+
+        # LATEST
+        elif prediction == "latest":
+
+            cur.execute("""
+            SELECT product_name, date
+            FROM stock_out
+            ORDER BY date DESC
+            LIMIT 1
+            """)
+
+            row = cur.fetchone()
+
+            response = f"Latest = {row[0]} {row[1]}"
+
+
+        # REPORT
+        elif prediction == "report":
+
+            cur.execute("SELECT SUM(quantity) FROM stock_out")
+            total = cur.fetchone()[0]
+
+            cur.execute("SELECT COUNT(*) FROM stock_out")
+            count = cur.fetchone()[0]
+
+            response = f"Total={count} Qty={total}"
+
+
+        conn.close()
+
+        chat_display.insert(tk.END, "You: " + user_input)
+        chat_display.insert(tk.END, "Bot: " + str(response))
+        chat_display.insert(tk.END, "-----------")
+
+    entry_chat.bind("<Return>", chatbot_response)
+    btn_style(chat_frame, "ASK", "#5c7cfa", chatbot_response).pack(pady=5)
 
     # ================= LOGIC =================
 
@@ -122,7 +410,10 @@ def open_Stock_out_window():
 
         conn = sqlite3.connect(db_path)
         cur = conn.cursor()
-        cur.execute("SELECT * FROM stock_out")
+        cur.execute("""
+SELECT stock_out_id, product_name, customer_name, quantity, date
+FROM stock_out
+""")
         rows = cur.fetchall()
         conn.close()
 
@@ -149,16 +440,26 @@ def open_Stock_out_window():
         entry_date.insert(0, values[4])
 
     def add_stock_out():
+
+        product = entry_product_name.get()
+        customer = entry_customer_name.get()
+        qty = entry_qty.get()
+        date = entry_date.get()
+
         conn = sqlite3.connect(db_path)
         cur = conn.cursor()
-        cur.execute("""INSERT INTO stock_out (product_name, customer_name, quantity, date)
-        VALUES (?,?,?,?)""",
-    (entry_product_name.get(), entry_customer_name.get(),
-     entry_qty.get(), entry_date.get()))
+
+        cur.execute("""
+        INSERT INTO stock_out
+        (product_name, customer_name, quantity, date)
+        VALUES (?, ?, ?, ?)
+        """, (product, customer, qty, date))
+
         conn.commit()
         conn.close()
 
         messagebox.showinfo("Success", "Stock Out Added")
+
         clear_fields()
         show_data()
 
