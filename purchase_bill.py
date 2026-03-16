@@ -5,6 +5,9 @@ import os
 import pandas as pd
 from datetime import datetime
 import fullscreen
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+import numpy as np
 
 def open_Purchase_bill_window():
 
@@ -18,6 +21,82 @@ def open_Purchase_bill_window():
     db_path = os.path.join(BASE_DIR, "product_stock_name.db")
 
     selected_id = None
+
+    # ---------- AI TRAINING ----------
+
+    training_questions = [
+
+        # count
+        "how many bills",
+        "total bills",
+        "number of bills",
+        "bill count",
+        "ketla bill chhe",
+        "total purchase",
+
+        # list
+        "show bills",
+        "list bills",
+        "show purchase",
+        "purchase list",
+        "display bills",
+
+        # product
+        "show products",
+        "list products",
+        "top product",
+        "most purchased",
+        "least product",
+
+        # supplier
+        "show suppliers",
+        "supplier list",
+        "total suppliers",
+
+        # payment
+        "payment method",
+        "cash payment",
+        "upi payment",
+        "card payment",
+
+        # analysis
+        "analysis",
+        "purchase analysis",
+        "report",
+        "show report",
+
+        # help
+        "help",
+        "what can you do",
+        "commands",
+        "options",
+        "shu kari sake"
+    ]
+
+
+    training_labels = [
+
+        "count","count","count","count","count","count",
+
+        "list","list","list","list","list",
+
+        "product","product","product","product","product",
+
+        "supplier","supplier","supplier",
+
+        "payment","payment","payment","payment",
+
+        "analysis","analysis","analysis","analysis",
+
+        "help","help","help","help","help"
+    ]
+
+
+    vectorizer = TfidfVectorizer()
+    X = vectorizer.fit_transform(training_questions)
+
+    model = LogisticRegression()
+    model.fit(X, training_labels)
 
     # ================= HEADER =================
     header = tk.Frame(win, bg="#5c7cfa", height=80)
@@ -137,6 +216,174 @@ def open_Purchase_bill_window():
         tree.column(col, width=110)
 
     tree.pack(fill="both", expand=True)
+
+    # ================= CHATBOT =================
+
+    chat_frame = tk.Frame(
+        right_frame,
+        bg="white",
+        padx=10,
+        pady=10,
+        highlightbackground="#e0e0e0",
+        highlightthickness=1
+    )
+    chat_frame.pack(fill="x", pady=10)
+
+    tk.Label(
+        chat_frame,
+        text="AI Chatbot",
+        font=("Segoe UI", 10, "bold"),
+        bg="white",
+        fg="#5c7cfa"
+    ).pack(anchor="w", pady=(0,5))
+
+
+    chat_display = tk.Listbox(
+        chat_frame,
+        height=6,
+        bg="#f8f9fa",
+        font=("Segoe UI", 9),
+        relief="flat",
+        highlightthickness=1,
+        highlightbackground="#e0e0e0"
+    )
+    chat_display.pack(fill="x", padx=5, pady=5)
+
+
+    entry_chat = tk.Entry(
+        chat_frame,
+        font=("Segoe UI", 10),
+        bg="#f8f9fa",
+        relief="flat",
+        highlightthickness=1,
+        highlightbackground="#e0e0e0",
+        highlightcolor="#5c7cfa"
+    )
+    entry_chat.pack(fill="x", padx=5, pady=5)
+
+    def chatbot_response(event=None):
+
+        user_input = entry_chat.get().lower()
+        entry_chat.delete(0, tk.END)
+
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+
+        X_test = vectorizer.transform([user_input])
+        prediction = model.predict(X_test)[0]
+
+        response = "Not found"
+
+
+        # ================= COUNT =================
+        if prediction == "count":
+
+            cur.execute("SELECT COUNT(*) FROM purchase_bill")
+            response = f"Total Bills = {cur.fetchone()[0]}"
+
+
+        # ================= LIST =================
+        elif prediction == "list":
+
+            cur.execute("SELECT bill_no FROM purchase_bill")
+            rows = cur.fetchall()
+
+            response = "\n".join([str(r[0]) for r in rows])
+
+
+        # ================= PRODUCT =================
+        elif prediction == "product":
+
+            cur.execute("""
+            SELECT product_name, SUM(qty_of_product)
+            FROM purchase_bill
+            GROUP BY product_name
+            ORDER BY SUM(qty_of_product) DESC
+            LIMIT 1
+            """)
+
+            row = cur.fetchone()
+
+            if row:
+                response = f"Top Product = {row[0]} ({row[1]})"
+
+
+        # ================= SUPPLIER =================
+        elif prediction == "supplier":
+
+            cur.execute("""
+            SELECT supplier_name, COUNT(*)
+            FROM purchase_bill
+            GROUP BY supplier_name
+            ORDER BY COUNT(*) DESC
+            LIMIT 1
+            """)
+
+            row = cur.fetchone()
+
+            if row:
+                response = f"Top Supplier = {row[0]} ({row[1]})"
+
+
+        # ================= PAYMENT =================
+        elif prediction == "payment":
+
+            cur.execute("""
+            SELECT payment_method, COUNT(*)
+            FROM purchase_bill
+            GROUP BY payment_method
+            ORDER BY COUNT(*) DESC
+            LIMIT 1
+            """)
+
+            row = cur.fetchone()
+
+            if row:
+                response = f"Most Payment = {row[0]}"
+
+
+        # ================= ANALYSIS =================
+        elif prediction == "analysis":
+
+            cur.execute("SELECT COUNT(*) FROM purchase_bill")
+            total = cur.fetchone()[0]
+
+            cur.execute("SELECT SUM(qty_of_product) FROM purchase_bill")
+            qty = cur.fetchone()[0]
+
+            response = f"Bills={total}  Qty={qty}"
+
+
+        # ================= HELP =================
+        elif prediction == "help":
+
+            response = (
+                "Commands:\n"
+                "count\n"
+                "list\n"
+                "product\n"
+                "supplier\n"
+                "payment\n"
+                "analysis"
+            )
+
+
+        conn.close()
+
+        chat_display.insert(tk.END, "You: " + user_input)
+        chat_display.insert(tk.END, "Bot: " + str(response))
+        chat_display.insert(tk.END, "-----------")
+
+
+    entry_chat.bind("<Return>", chatbot_response)
+
+    tk.Button(
+    chat_frame,
+    text="ASK",
+    bg="#5c7cfa",
+    fg="white",
+    command=chatbot_response
+).pack(pady=5)
 
     # ================= LOGIC =================
 
