@@ -338,6 +338,8 @@ entry_pass = tk.Entry(input_container,
 
 entry_pass.pack(fill="x", pady=(5, 40), ipady=12)
 
+entry_pass.bind("<Return>", lambda e: login())
+
 # Login Button
 btn_login = tk.Button(input_container,
                       text="LOGIN",
