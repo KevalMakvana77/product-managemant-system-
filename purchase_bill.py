@@ -199,6 +199,20 @@ def open_Purchase_bill_window():
                          font=("Segoe UI", 9, "bold"),
                          relief="flat", cursor="hand2",
                          width=12, pady=6)
+    
+    def btn_style(parent, text, color, cmd):
+        return tk.Button(
+            parent,
+            text=text,
+            command=cmd,
+            bg=color,
+            fg="black",
+            font=("Segoe UI", 9, "bold"),
+            relief="flat",
+            cursor="hand2",
+            width=12,
+            pady=6
+        )
 
     black_btn("SAVE", lambda: save_bill()).pack(side="left", padx=5)
     black_btn("UPDATE", lambda: update_bill()).pack(side="left", padx=5)
@@ -377,13 +391,7 @@ def open_Purchase_bill_window():
 
     entry_chat.bind("<Return>", chatbot_response)
 
-    tk.Button(
-    chat_frame,
-    text="ASK",
-    bg="#5c7cfa",
-    fg="white",
-    command=chatbot_response
-).pack(pady=5)
+    btn_style(chat_frame, "ASK", "#5c7cfa", chatbot_response).pack(pady=5)
 
     # ================= LOGIC =================
 

@@ -5,6 +5,9 @@ import os
 import pandas as pd
 from datetime import datetime
 import fullscreen
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+import numpy as np
 
 def open_selling_bill_window():
 
@@ -17,6 +20,57 @@ def open_selling_bill_window():
     db_path = os.path.join(BASE_DIR, "product_stock_name.db")
 
     selected_rowid = 0   # ✅ FIXED
+
+    # ---------- AI TRAINING ----------
+
+    training_questions = [
+
+        "how many bills",
+        "total bills",
+        "bill count",
+        "total selling",
+
+        "show bills",
+        "list bills",
+        "selling list",
+
+        "top product",
+        "most sold",
+
+        "top customer",
+        "customer list",
+
+        "payment method",
+        "cash payment",
+
+        "analysis",
+        "report",
+
+        "help"
+    ]
+
+    training_labels = [
+
+        "count","count","count","count",
+
+        "list","list","list",
+
+        "product","product",
+
+        "customer","customer",
+
+        "payment","payment",
+
+        "analysis","analysis",
+
+        "help"
+    ]
+
+    vectorizer = TfidfVectorizer()
+    X = vectorizer.fit_transform(training_questions)
+
+    model = LogisticRegression()
+    model.fit(X, training_labels)
 
     # ================= HEADER =================
     header = tk.Frame(win, bg="#5c7cfa", height=80)
@@ -31,7 +85,7 @@ def open_selling_bill_window():
                           highlightbackground="#e0e0e0",
                           highlightthickness=1)
     main_frame.place(relx=0.5, rely=0.55, anchor="center",
-                     width=1200, height=630)
+                     width=1200, height=670)
 
     # ================= LEFT FORM =================
     form_frame = tk.Frame(main_frame, bg="white")
@@ -138,6 +192,19 @@ def open_selling_bill_window():
                          font=("Segoe UI", 9, "bold"),
                          relief="flat", cursor="hand2",
                          width=12, pady=6)
+    def btn_style(parent, text, color, cmd):
+        return tk.Button(
+            parent,
+            text=text,
+            command=cmd,
+            bg=color,
+            fg="black",
+            font=("Segoe UI", 9, "bold"),
+            relief="flat",
+            cursor="hand2",
+            width=12,
+            pady=6
+        )
 
     black_btn("SAVE", lambda: save_bill()).pack(side="left", padx=5)
     black_btn("UPDATE", lambda: update_bill()).pack(side="left", padx=5)
@@ -158,9 +225,155 @@ def open_selling_bill_window():
         tree.column(col, width=120)
 
     tree.pack(fill="both", expand=True)
+
+    # ================= CHATBOT =================
+
+    chat_frame = tk.Frame(
+        right_frame,
+        bg="white",
+        padx=10,
+        pady=10,
+        highlightbackground="#e0e0e0",
+        highlightthickness=1
+    )
+    chat_frame.pack(fill="x", pady=10)
+
+    tk.Label(
+        chat_frame,
+        text="AI Chatbot",
+        font=("Segoe UI", 10, "bold"),
+        bg="white",
+        fg="#5c7cfa"
+    ).pack(anchor="w", pady=(0,5))
+
+
+    chat_display = tk.Listbox(
+        chat_frame,
+        height=6,
+        bg="#f8f9fa",
+        font=("Segoe UI", 9),
+        relief="flat",
+        highlightthickness=1,
+        highlightbackground="#e0e0e0"
+    )
+    chat_display.pack(fill="x", padx=5, pady=5)
+
+
+    entry_chat = tk.Entry(
+        chat_frame,
+        font=("Segoe UI", 10),
+        bg="#f8f9fa",
+        relief="flat",
+        highlightthickness=1,
+        highlightbackground="#e0e0e0",
+        highlightcolor="#5c7cfa"
+    )
+    entry_chat.pack(fill="x", padx=5, pady=5)
     
 
     # ================= LOGIC =================
+
+    def chatbot_response(event=None):
+
+        user_input = entry_chat.get().lower()
+        entry_chat.delete(0, tk.END)
+
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+
+        X_test = vectorizer.transform([user_input])
+        prediction = model.predict(X_test)[0]
+
+        response = "Not found"
+
+
+        if prediction == "count":
+
+            cur.execute("SELECT COUNT(*) FROM selling_bill")
+            response = cur.fetchone()[0]
+
+
+        elif prediction == "list":
+
+            cur.execute("SELECT bill_no FROM selling_bill")
+            rows = cur.fetchall()
+
+            response = "\n".join([str(r[0]) for r in rows])
+
+
+        elif prediction == "product":
+
+            cur.execute("""
+            SELECT product_name, SUM(qty_of_product)
+            FROM selling_bill
+            GROUP BY product_name
+            ORDER BY SUM(qty_of_product) DESC
+            LIMIT 1
+            """)
+
+            row = cur.fetchone()
+
+            if row:
+                response = f"{row[0]} = {row[1]}"
+
+
+        elif prediction == "customer":
+
+            cur.execute("""
+            SELECT customer_name, COUNT(*)
+            FROM selling_bill
+            GROUP BY customer_name
+            ORDER BY COUNT(*) DESC
+            LIMIT 1
+            """)
+
+            row = cur.fetchone()
+
+            if row:
+                response = f"{row[0]} = {row[1]}"
+
+
+        elif prediction == "payment":
+
+            cur.execute("""
+            SELECT payment_method, COUNT(*)
+            FROM selling_bill
+            GROUP BY payment_method
+            ORDER BY COUNT(*) DESC
+            LIMIT 1
+            """)
+
+            row = cur.fetchone()
+
+            if row:
+                response = row[0]
+
+
+        elif prediction == "analysis":
+
+            cur.execute("SELECT COUNT(*) FROM selling_bill")
+            c = cur.fetchone()[0]
+
+            cur.execute("SELECT SUM(qty_of_product) FROM selling_bill")
+            q = cur.fetchone()[0]
+
+            response = f"Total={c} Qty={q}"
+
+
+        elif prediction == "help":
+
+            response = "count list product customer payment analysis"
+
+
+        conn.close()
+
+        chat_display.insert(tk.END, "You: " + user_input)
+        chat_display.insert(tk.END, "Bot: " + str(response))
+        chat_display.insert(tk.END, "--------")
+
+    entry_chat.bind("<Return>", chatbot_response)
+
+    btn_style(chat_frame, "ASK", "#5c7cfa", chatbot_response).pack(pady=5)
 
     def show_data():
         for i in tree.get_children():
