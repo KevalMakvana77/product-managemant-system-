@@ -5,6 +5,9 @@ import os
 import pandas as pd
 from datetime import datetime
 import fullscreen
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+import numpy as np
 
 def open_pending_seller_window():
 
@@ -19,6 +22,123 @@ def open_pending_seller_window():
 
     selected_rowid = None
 
+    # ---------- AI Chat Training ----------
+
+    training_questions = [
+
+        "how many pending",
+        "total pending",
+        "count pending",
+        "number of pending",
+
+        "show pending",
+        "list pending",
+        "show all pending",
+        "pending list",
+
+        "total amount",
+        "pending amount",
+        "total pending amount",
+        "how much pending",
+
+        "total qty",
+        "total quantity",
+        "pending qty",
+
+        "top supplier",
+        "highest supplier",
+        "max supplier",
+
+        "top product",
+        "highest product",
+        "most product",
+
+        "highest bill",
+        "max bill",
+        "big bill",
+
+        "lowest bill",
+        "small bill",
+
+        "average bill",
+        "average amount",
+
+        "today pending",
+        "today data",
+
+        "pending payment",
+        "payment pending",
+
+        "pending 30",
+        "over 30 days",
+        "old pending",
+
+        "supplier list",
+        "product list"
+
+    ]
+
+
+    training_labels = [
+
+        "count",
+        "count",
+        "count",
+        "count",
+
+        "list",
+        "list",
+        "list",
+        "list",
+
+        "amount",
+        "amount",
+        "amount",
+        "amount",
+
+        "qty",
+        "qty",
+        "qty",
+
+        "supplier",
+        "supplier",
+        "supplier",
+
+        "product",
+        "product",
+        "product",
+
+        "highbill",
+        "highbill",
+        "highbill",
+
+        "lowbill",
+        "lowbill",
+
+        "average",
+        "average",
+
+        "today",
+        "today",
+
+        "payment",
+        "payment",
+
+        "old",
+        "old",
+        "old",
+
+        "supplierlist",
+        "productlist"
+
+    ]
+
+    vectorizer = TfidfVectorizer()
+    X = vectorizer.fit_transform(training_questions)
+
+    model = LogisticRegression()
+    model.fit(X, training_labels)
+
     # ================= HEADER =================
     header = tk.Frame(win, bg="#5c7cfa", height=80)
     header.pack(fill="x")
@@ -32,7 +152,7 @@ def open_pending_seller_window():
                           highlightbackground="#e0e0e0",
                           highlightthickness=1)
     main_frame.place(relx=0.5, rely=0.55, anchor="center",
-                     width=1200, height=700)
+                     width=1200, height=750)
 
     # ================= LEFT FORM =================
     form_frame = tk.Frame(main_frame, bg="white")
@@ -97,18 +217,27 @@ def open_pending_seller_window():
     btn_frame = tk.Frame(right_frame, bg="white")
     btn_frame.pack(fill="x", pady=(0, 15))
 
-    def black_btn(text, cmd):
-        return tk.Button(btn_frame, text=text, command=cmd,
-                         bg="black", fg="black",
+    def black_btn(parent, text, color, cmd):
+        return tk.Button(parent, text=text, command=cmd,
+                         bg=color, fg="black",
                          font=("Segoe UI", 9, "bold"),
                          relief="flat", cursor="hand2",
-                         width=14, pady=6)
+                         width=12, pady=6)
 
-    black_btn("SAVE", lambda: save_entry()).pack(side="left", padx=5)
-    black_btn("UPDATE", lambda: update_entry()).pack(side="left", padx=5)
-    black_btn("DELETE", lambda: delete_entry()).pack(side="left", padx=5)
-    black_btn("ANALYSIS", lambda: show_pending_seller_analysis()).pack(side="left", padx=5)
-    black_btn("LOGOUT", lambda: win.destroy()).pack(side="right", padx=5)
+    black_btn(btn_frame, "SAVE", "#5c7cfa",
+          lambda: save_entry()).pack(side="left", padx=5)
+
+    black_btn(btn_frame, "UPDATE", "#20c997",
+            lambda: update_entry()).pack(side="left", padx=5)
+
+    black_btn(btn_frame, "DELETE", "#fa5252",
+            lambda: delete_entry()).pack(side="left", padx=5)
+
+    black_btn(btn_frame, "ANALYSIS", "#845ef7",
+            lambda: show_pending_seller_analysis()).pack(side="left", padx=5)
+
+    black_btn(btn_frame, "LOGOUT", "#000000",
+            lambda: win.destroy()).pack(side="right", padx=5)
 
     # ================= TABLE =================
     columns = ("RowID", "Purchase Bill", "Bill No", "Product ID",
@@ -123,6 +252,282 @@ def open_pending_seller_window():
         tree.column(col, width=110)
 
     tree.pack(fill="both", expand=True)
+
+    # ================= CHATBOT =================
+
+    chat_frame = tk.Frame(
+        right_frame,
+        bg="white",
+        padx=10,
+        pady=10,
+        highlightbackground="#e0e0e0",
+        highlightthickness=1
+    )
+    chat_frame.pack(fill="x", pady=10)
+
+    tk.Label(
+        chat_frame,
+        text="AI Chatbot",
+        font=("Segoe UI", 10, "bold"),
+        bg="white",
+        fg="#5c7cfa"
+    ).pack(anchor="w", pady=(0,5))
+
+
+    chat_display = tk.Listbox(
+        chat_frame,
+        height=6,
+        bg="#f8f9fa",
+        font=("Segoe UI", 9),
+        relief="flat",
+        highlightthickness=1,
+        highlightbackground="#e0e0e0"
+    )
+    chat_display.pack(fill="x", padx=5, pady=5)
+
+
+    chat_entry = tk.Entry(
+        chat_frame,
+        font=("Segoe UI", 10),
+        bg="#f8f9fa",
+        relief="flat",
+        highlightthickness=1,
+        highlightbackground="#e0e0e0",
+        highlightcolor="#5c7cfa"
+    )
+    chat_entry.pack(fill="x", padx=5, pady=5)
+
+    def ai_reply(event=None):
+
+        question = chat_entry.get().lower()
+
+        X_test = vectorizer.transform([question])
+        prediction = model.predict(X_test)[0]
+
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+
+        # ---------- COUNT ----------
+        if prediction == "count":
+
+            cur.execute(
+                "SELECT COUNT(*) FROM pending_payment_for_seller"
+            )
+            c = cur.fetchone()[0]
+
+            response = f"Total Pending = {c}"
+
+
+        # ---------- LIST ----------
+        elif prediction == "list":
+
+            cur.execute(
+                "SELECT supplier_name FROM pending_payment_for_seller"
+            )
+
+            rows = cur.fetchall()
+
+            response = "Pending:\n" + "\n".join(
+                [r[0] for r in rows]
+            )
+
+
+        # ---------- AMOUNT ----------
+        elif prediction == "amount":
+
+            cur.execute(
+            "SELECT SUM(qty_of_product*price) FROM pending_payment_for_seller"
+            )
+
+            total = cur.fetchone()[0]
+
+            response = f"Total Amount = {total}"
+
+
+        # ---------- QTY ----------
+        elif prediction == "qty":
+
+            cur.execute(
+            "SELECT SUM(qty_of_product) FROM pending_payment_for_seller"
+            )
+
+            total = cur.fetchone()[0]
+
+            response = f"Total Qty = {total}"
+
+
+        # ---------- TOP SUPPLIER ----------
+        elif prediction == "supplier":
+
+            cur.execute("""
+            SELECT supplier_name,
+            SUM(qty_of_product*price)
+            FROM pending_payment_for_seller
+            GROUP BY supplier_name
+            ORDER BY 2 DESC
+            LIMIT 1
+            """)
+
+            row = cur.fetchone()
+
+            if row:
+                response = f"Top Supplier = {row[0]}"
+            else:
+                response = "No data"
+
+
+        # ---------- TOP PRODUCT ----------
+        elif prediction == "product":
+
+            cur.execute("""
+            SELECT product_name,
+            SUM(qty_of_product)
+            FROM pending_payment_for_seller
+            GROUP BY product_name
+            ORDER BY 2 DESC
+            LIMIT 1
+            """)
+
+            row = cur.fetchone()
+
+            if row:
+                response = f"Top Product = {row[0]}"
+            else:
+                response = "No data"
+
+
+        # ---------- HIGHEST BILL ----------
+        elif prediction == "highbill":
+
+            cur.execute("""
+            SELECT bill_no,
+            SUM(qty_of_product*price)
+            FROM pending_payment_for_seller
+            GROUP BY bill_no
+            ORDER BY 2 DESC
+            LIMIT 1
+            """)
+
+            row = cur.fetchone()
+
+            response = f"Highest Bill = {row}"
+
+
+        # ---------- LOWEST BILL ----------
+        elif prediction == "lowbill":
+
+            cur.execute("""
+            SELECT bill_no,
+            SUM(qty_of_product*price)
+            FROM pending_payment_for_seller
+            GROUP BY bill_no
+            ORDER BY 2 ASC
+            LIMIT 1
+            """)
+
+            row = cur.fetchone()
+
+            response = f"Lowest Bill = {row}"
+
+
+        # ---------- AVERAGE ----------
+        elif prediction == "average":
+
+            cur.execute("""
+            SELECT AVG(qty_of_product*price)
+            FROM pending_payment_for_seller
+            """)
+
+            avg = cur.fetchone()[0]
+
+            response = f"Average Amount = {avg}"
+
+
+        # ---------- TODAY ----------
+        elif prediction == "today":
+
+            today = datetime.now().strftime("%Y-%m-%d")
+
+            cur.execute("""
+            SELECT COUNT(*)
+            FROM pending_payment_for_seller
+            WHERE date=?
+            """, (today,))
+
+            c = cur.fetchone()[0]
+
+            response = f"Today Pending = {c}"
+
+
+        # ---------- PAYMENT ----------
+        elif prediction == "payment":
+
+            cur.execute("""
+            SELECT COUNT(*)
+            FROM pending_payment_for_seller
+            WHERE payment_method='Pending'
+            """)
+
+            c = cur.fetchone()[0]
+
+            response = f"Payment Pending = {c}"
+
+
+        # ---------- OLD ----------
+        elif prediction == "old":
+
+            cur.execute("""
+            SELECT date FROM pending_payment_for_seller
+            """)
+
+            rows = cur.fetchall()
+
+            response = f"Total records = {len(rows)}"
+
+
+        # ---------- SUPPLIER LIST ----------
+        elif prediction == "supplierlist":
+
+            cur.execute("""
+            SELECT DISTINCT supplier_name
+            FROM pending_payment_for_seller
+            """)
+
+            rows = cur.fetchall()
+
+            response = "\n".join([r[0] for r in rows])
+
+
+        # ---------- PRODUCT LIST ----------
+        elif prediction == "productlist":
+
+            cur.execute("""
+            SELECT DISTINCT product_name
+            FROM pending_payment_for_seller
+            """)
+
+            rows = cur.fetchall()
+
+            response = "\n".join([r[0] for r in rows])
+
+
+        else:
+            response = "I don't understand"
+
+
+        conn.close()
+
+        chat_display.insert(tk.END,
+            "You : " + question + "\n")
+
+        chat_display.insert(tk.END,
+            "AI : " + str(response) + "\n\n")
+
+        chat_entry.delete(0, tk.END)
+
+    chat_entry.bind("<Return>", ai_reply)
+    black_btn(chat_frame, "ASK", "#5c7cfa", ai_reply).pack(pady=5)
+
 
     # ================= LOGIC =================
 
