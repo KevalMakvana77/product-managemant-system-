@@ -242,9 +242,6 @@ def reset_password(username, new_password, confirm_password, window):
 
     conn.close()
 
-
-
-
 # ---------------- LOGIN FUNCTION ----------------
 def login():
 
@@ -356,7 +353,7 @@ btn_login.pack(fill="x", ipady=12)
 # Forgot Password Label (Clickable)
 forgot_label = tk.Label(main_frame,
                         text="Forgot Password?",
-                        font=("Segoe UI", 9),
+                        font=("Segoe UI", 13, "bold"),
                         bg="white",
                         fg="#5c7cfa",
                         cursor="spraycan")
