@@ -42,7 +42,7 @@ def open_customer_window():
 
 "customer city",
 "city",
-
+ 
 "customer email",
 "email",
 
@@ -69,7 +69,7 @@ def open_customer_window():
     "detail",
     "detail",
 
-    "mobile",
+    "number",
     "number",
     "number",
     "number",
@@ -251,6 +251,7 @@ def open_customer_window():
         prediction = model.predict(X_test)[0]
 
         response = "Not found"
+        print("Predicted Intent:", prediction)
 
 
         # ---------- COUNT ----------
